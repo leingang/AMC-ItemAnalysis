@@ -17,7 +17,7 @@
 # along with Auto-Multiple-Choice.  If not, see
 # <http://www.gnu.org/licenses/>.
 
-package AMC::Export::register::NYUClasses;
+package AMC::Export::register::ItemAnalysis;
 
 use AMC::Export::register;
 use AMC::Basic;
