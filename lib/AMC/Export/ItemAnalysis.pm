@@ -80,13 +80,13 @@ sub load {
     $self->{'_capture'}=$self->{'_data'}->module('capture');
     bless $self->{'_capture'}, 'AMC::DataModule::capture::ItemAnalysis';
     for my $var ('darkness_threshold','darkness_threshold_up') {
-        $self->{'_capture'}->{$var} = $self->{'_scoring'}->variable($var}
+        $self->{'_capture'}->{$var} = $self->{'_scoring'}->variable($var);
     }
 }
 
 # format a number
 sub parse_num {
-    my ($self,$n)=@_;
+    my ($self,$n)= @_;
     if($self->{'out.decimal'} ne '.') {
 	$n =~ s/\./$self->{'out.decimal'}/;
     }
@@ -139,8 +139,8 @@ sub get_data {
     $o->{'responses'} = [];
     $o->{'totals'} = [];
     
-    $self->{'_scoring'}->begin_read_transaction('XIA'); # do I need this?
-
+    # $self->{'_scoring'}->begin_read_transaction('XIA'); # do I need this?
+    # BREADCRUMB: getting sql transaction errors right around here
     my $dt=$self->{'_scoring'}->variable('darkness_threshold');
     my $lk=$self->{'_assoc'}->variable('key_in_list');
 
@@ -167,10 +167,10 @@ sub get_data {
         # @sc is a list of the student number and copy number
         # It can't be a hash key but we could stringify it.
         my @sc=($m->{'student'},$m->{'copy'});
-        $score_rec = {}
+        $score_rec = {};
         for my $q (@questions) {
-            $score_rec->{$q->{'title'}}={
-                'score' => $self->{'_scoring'}->question_score(@sc,$q->{'question'})
+            $score_rec->{$q->{'title'}} = {
+                'score' => $self->{'_scoring'}->question_score(@sc,$q->{'question'}),
                 'response' =>$self->{'_capture'}->question_response(@sc,$q->{'question'})
             };
         }
@@ -189,7 +189,9 @@ sub export {
 
     open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
 
-    $data = self->get_data;
+    $self->pre_process();
+
+    $data = $self->get_data;
 
     # We're just going to dump it to the output file    
     print OUT Dumper($data);
