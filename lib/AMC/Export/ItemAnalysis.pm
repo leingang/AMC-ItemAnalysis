@@ -146,6 +146,10 @@ sub get_data {
 sub export {    
     my ($self,$fichier)=@_;
     my $sep=$self->{'out.separateur'};
+    # this setting comes from the GUI.  We may want to report the number of
+    # absentees somewhere, but there's no need to add them to the analysis.
+    # So we'll just reset it to zero.
+    $self->{'noms.useall'} = 0;
     print "export: BEGIN\n";
 
     # open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
