@@ -5,6 +5,7 @@ use AMC::Basic;
 use AMC::Export;
 use AMC::ItemAnalysis::capture;
 use YAML::Tiny;
+use Statistics::Descriptive;
 
 use Encode;
 
@@ -75,6 +76,7 @@ sub parse_string {
 # $out->{'responses'}->[$i]->{$t}: hashref
 # $out->{'responses'}->[$i]->{$t}->{'score'}: score by person $i on item $t
 # $out->{'responses'}->[$i]->{$t}->{'response'}: response by person $i on item $t
+# $out->{'responses'}->[$i]->{$t}->{'index'}: question number (an id for the question? or on the exam?)
 # $out->{'totals'}: arrayref, indexed exactly as $out->{'responses'}
 # $out->{'totals'}->[$i]: mark
 # $out->{'items'}: arrayref, indexed by $i
@@ -128,9 +130,13 @@ sub get_data {
         my @sc=($m->{'student'},$m->{'copy'});
         $score_rec = {};
         for my $q (@questions) {
+            $response = $self->{'_capture'}->question_response(@sc,$q->{'question'});
+            $result = $self->{'_scoring'}->question_result(@sc,$q->{'question'});
             $score_rec->{$q->{'title'}} = {
-                'score' => $self->{'_scoring'}->question_score(@sc,$q->{'question'}),
-                'response' =>$self->{'_capture'}->question_response(@sc,$q->{'question'})
+                'index' => $q->{'question'},
+                'score' => $result->{'score'},
+                'max' => $result->{'max'},
+                'response' => $response
             };
         }
         push @{$o->{'responses'}}, $score_rec;
