@@ -39,7 +39,7 @@ sub name {
 }
 
 sub extension {
-  return('-item-analysis.tex');
+  return('-item-analysis.yml');
 }
 
 sub options_from_config {

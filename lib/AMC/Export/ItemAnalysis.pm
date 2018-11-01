@@ -4,6 +4,7 @@ package AMC::Export::ItemAnalysis;
 use AMC::Basic;
 use AMC::Export;
 use AMC::ItemAnalysis::capture;
+use YAML::Tiny;
 
 use Encode;
 
@@ -116,7 +117,7 @@ sub get_data {
     # I think:
     # - @codes is student identifying codes,
     # - @questions is exam questions.
-    # - last argument is "plain" (no ticks) or not (yes ticks).
+    # - last argument is "plain" or not.  
     $self->codes_questions(\@codes,\@questions,1);
 
     # begin loop on each student record
@@ -147,16 +148,18 @@ sub export {
     my $sep=$self->{'out.separateur'};
     print "export: BEGIN\n";
 
-    open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
+    # open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
 
     $self->pre_process();
 
     $data = $self->get_data;
 
     # We're just going to dump it to the output file    
-    print OUT Dumper($data);
+    my $yaml = YAML::Tiny->new($data);
+    $yaml->write($fichier);
+    # print OUT Dumper($data);
     
-    close(OUT);
+    #close(OUT);
 }
 
 # overloading just to track a transaction error
