@@ -62,57 +62,49 @@ sub parse_string {
 }
 
 
-
-# Export data structure
-# =====================
-# $self->get_data() produces a large hashref $out
+# Import exam, question, and response data into $self.
+# 
+# $self->{'marks'} is populated in AMC::Export::pre_process().  It is an arrayref,
+# with one item for each student.  For each $i, 
+# $self->{'marks'}->[$i] has keys 'total' and 'max', along with a bunch of other stuff.
 #
-# $out->{'title'}: title of the exam
-# $out->{'mean'}: mean total score
-# $out->{'max'}: max total score
-# $out->{'responses'}: arrayref, indexed by (student number?) $i
-# OR: hashref keyed by _ID_?  
-# $out->{'responses'}->[$i]: hashref, keyed by question title $t
-# $out->{'responses'}->[$i]->{$t}: hashref
-# $out->{'responses'}->[$i]->{$t}->{'score'}: score by person $i on item $t
-# $out->{'responses'}->[$i]->{$t}->{'response'}: response by person $i on item $t
-# $out->{'responses'}->[$i]->{$t}->{'index'}: question number (an id for the question? or on the exam?)
-# $out->{'totals'}: arrayref, indexed exactly as $out->{'responses'}
-# $out->{'totals'}->[$i]: mark
-# $out->{'items'}: arrayref, indexed by $i
-# OR: hashref, keyed by title $t
-# wondering: how to preserve item order?  
-# $out->{'items'}->[$i]->{'title'}: title
-# $out->{'items'}->[$i]->{'mean'}: mean
-# $out->{'items'}->[$i]->{'max'}: max
-# $out->{'items'}->[$i]->{'discrimination'}: correlation of item with total
-# $out->{'items'}->[$i]->{'difficulty'}: mean/max
-# $out->{'items'}->[$i]->{'histogram'}: hashref with key $k$
-# (either A, B, C or '1', '2', '3', I think)
-# $out->{'items'}->[$i]->{'histogram'}->{$k}->{'count'}
-# $out->{'items'}->[$i]->{'histogram'}->{$k}->{'mean'}
-# $out->{'items'}->[$i]->{'histogram'}->{$k}->{'weight'}
-sub get_data {
+# $self->{'questions'} is populated by the result of AMC::DataModule::scoring::codes_questions,
+# with one item for each (non-indicative) question.  For each $i,
+# $self->{'questions'}->[$i] has keys/values
+# - title: unique string identifying the question
+# - question: integer ID in database
+#
+# $self->{'responses'} is populated by looking up each student's responses and results.
+# These come from AMC::DataModule::scoring::question_result and 
+# AMC::ItemAnalysis::capture::question_response.  The $ith element of $self->{'responses'}.
+# is the complete list of responses for the student in the $ith element of $self->{'marks'}. 
+# For each $i, $self->{'responses'}->[$i] is a hashref, keyed on question titles.
+# For each question title $k, $self->{'responses'}->[$i]->{$k} has keys/values
+# - score: score by student $i on question $k
+# - response: response by student $i on question $k
+# - index: question number (not sure if this is in the DB or on the student's paper).
+#
+# $self->{'metadata'} will contain any metadata we can discover about the exam.
+# - title: title of the exam
+# TODO: get additional metadata from the TeX file, if possible.
+#
+# $self->{'summary'} will contain any summary statistics about the exam total score.
+# This method only sets a 'max' key/value.
+# Later methods will add to it.
+
+sub pre_process {
     my ($self) = @_;
     print "get_data:BEGIN\n";
-    $o = {};
-    $o->{'items'} = [];
-    $o->{'responses'} = [];
-    $o->{'totals'} = [];
-    
-    # $self->{'_scoring'}->begin_read_transaction('XIA'); # do I need this?
-    # BREADCRUMB: getting sql transaction errors right around here
-    my $dt=$self->{'_scoring'}->variable('darkness_threshold');
-    my $lk=$self->{'_assoc'}->variable('key_in_list');
-
-
+    $self->SUPER::pre_process();
+    # put this in $self instead
+    # $o = {};
+    # $o->{'items'} = []; # replace with $self->{'questions'}
+    # $o->{'responses'} = []; # replace with $self->{'responses'}
+    # $o->{'totals'} = $self->{'marks'}; # just use $self->{'marks'}
+    $self->{'responses'} = [];
     $exam_name = $self->{'out.nom'} ? $self->{'out.nom'} : "Untitled Exam" ;
-    $marks = $self->{'marks'};
-    # look for the first mark that has a max
-    for my $m (@$marks) {
-        last if ($max = $m->{'max'});
-    }
 
+    $marks = $self->{'marks'};
     my @codes;
     my @questions;
     # populate @codes and @questions lists.
@@ -120,11 +112,24 @@ sub get_data {
     # - @codes is student identifying codes,
     # - @questions is exam questions.
     # - last argument is "plain" or not.  
+    #
+    # Do we need @codes?
     $self->codes_questions(\@codes,\@questions,1);
+    $self->{'questions'} = \@questions;
 
-    # begin loop on each student record
+    # look for the first mark that has a max
+    # (Assumes all student exams have the same max.)
     for my $m (@$marks) {
-        push @{$o->{'totals'}}, $m->{'mark'};
+        last if ($max = $m->{'max'});
+    }
+
+    # Loop on each student mark record
+    # Since we're looping through @$marks and appending to both @{$o->{'totals'}}
+    # and @{$o->{'responses'}}, those arrays will be lined up by student.
+    # For now, there's no need to record the student number, copy number,
+    # or any personally identifying information about the student as a key.
+    for my $m (@$marks) {
+        # push @{$o->{'totals'}}, $m->{'mark'};
         # @sc is a list of the student number and copy number
         # It can't be a hash key but we could stringify it.
         my @sc=($m->{'student'},$m->{'copy'});
@@ -139,13 +144,33 @@ sub get_data {
                 'response' => $response
             };
         }
-        push @{$o->{'responses'}}, $score_rec;
+        push @{$self->{'responses'}}, $score_rec;
     }
 
-    if ($max) { $o->{'max'} = $max; }
-    if ($exam_name) { $o->{'title'} = $exam_name; }
-    return $o;
+    # exam summary statistics and metadata
+    $self->{'summary'} = {};
+    $self->{'metadata'} = {};
+    if ($max) { $self->{'summary'}->{'max'} = $max; }
+    if ($exam_name) { $self->{'metadata'}->{'title'} = $exam_name; }
+    return;
 
+}
+
+# Do the analysis.  These keys/values should be set:
+# For each question in @{$self->{'questions'}},
+# - mean: average
+# - max: maximum score
+# - discrimintation: correlation of item with total
+# - difficulty: mean/max
+# - histogram: a hashref keyed by the answer type
+# 
+# For each answer $a to question $i,
+# $self->{'question'}->[$i]->{'histogram'}->{$a} has keys/values:
+# - count: number of students selecting this response
+# - mean: mean of total for those students who selected this response
+# - weight: score for students who selected this response
+#           (I think this can be found in student_scoring_base)
+sub analyze {
 }
 
 
@@ -162,7 +187,13 @@ sub export {
 
     $self->pre_process();
 
-    $data = $self->get_data;
+    $data = {
+        'metadata' => $self->{'metadata'},
+        'summary' => $self->{'summary'},
+        'items' => $self->{'questions'},
+        'responses' => $self->{'responses'},
+        'totals' => $self->{'marks'}
+    };
 
     # We're just going to dump it to the output file    
     my $yaml = YAML::Tiny->new($data);
@@ -170,89 +201,6 @@ sub export {
     # print OUT Dumper($data);
     
     #close(OUT);
-}
-
-# overloading just to track a transaction error
-sub pre_process {
-    print "pre_process: BEGIN\n";
-    my ($self)=@_;
-
-    $self->{'sort.keys'}=$sorting{lc($1)}
-      if($self->{'sort.keys'} =~ /^\s*([lmin])/i);
-    $self->{'sort.keys'}=[] if(!$self->{'sort.keys'});
-
-    $self->load();
-
-    print "pre_process: EXPP\n";
-    $self->{'_scoring'}->begin_read_transaction('EXPP');
-
-    my $lk=$self->{'_assoc'}->variable('key_in_list');
-    my %keys=();
-    my @marks=();
-    my @post_correct=$self->{'_scoring'}->postcorrect_sc;
-
-    # Get all students from the marks table
-
-    my $sth=$self->{'_scoring'}->statement('marks');
-    $sth->execute;
-  STUDENT: while(my $m=$sth->fetchrow_hashref) {
-      next STUDENT if((!$self->{'noms.postcorrect'}) &&
-		      $m->{student}==$post_correct[0] &&
-		      $m->{'copy'}==$post_correct[1]);
-
-      $m->{'abs'}=0;
-      $m->{'student.copy'}=studentids_string($m->{'student'},$m->{'copy'});
-
-      # Association key for this sheet
-      $m->{'student.key'}=$self->{'_assoc'}->get_real($m->{'student'},$m->{'copy'});
-      $keys{$m->{'student.key'}}=1;
-
-      # find the corresponding name
-      my ($n)=$self->{'noms'}->data($lk,$m->{'student.key'},test_numeric=>1);
-      if($n) {
-	$m->{'student.name'}=$n->{'_ID_'};
-	$m->{'student.line'}=$n->{'_LINE_'};
-	$m->{'student.all'}={%$n};
-        # $n->{$lk} should be equal to $m->{'student.key'}, but in
-        # some cases (older versions), the code stored in the database
-        # has leading zeroes removed...
-        $keys{$n->{$lk}}=1;
-      } else {
-	for(qw/name line/) {
-	  $m->{"student.$_"}='?';
-	}
-      }
-      push @marks,$m;
-    }
-
-    # Now, add students with no mark (if requested)
-
-    if($self->{'noms.useall'}) {
-      for my $i ($self->{'noms'}->liste($lk)) {
-	if(!$keys{$i}) {
-	  my ($name)=$self->{'noms'}->data($lk,$i,test_numeric=>1);
-	  push @marks,
-	    {'student'=>'',
-	     'copy'=>'',
-	     'student.copy'=>'',
-	     'abs'=>1,
-	     'student.key'=>$name->{$lk},
-	     'mark'=>$self->{'noms.abs'},
-	     'student.name'=>$name->{'_ID_'},
-	     'student.line'=>$name->{'_LINE_'},
-	     'student.all'=>{%$name},
-	    };
-	}
-      }
-    }
-
-    # sorting as requested
-
-    debug "Sorting with keys ".join(", ",@{$self->{'sort.keys'}});
-    $self->{'marks'}=[sort { $self->compare($a,$b); } @marks];
-
-    $self->{'_scoring'}->end_transaction('EXPP');
-    print "pre_process: END\n";
 }
 
 1;
