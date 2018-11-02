@@ -159,18 +159,50 @@ sub pre_process {
 # Do the analysis.  These keys/values should be set:
 # For each question in @{$self->{'questions'}},
 # - mean: average
-# - max: maximum score
+# - max: maximum score achieved
+# - ceiling: maximum score possible
 # - discrimintation: correlation of item with total
-# - difficulty: mean/max
+# - difficulty: mean/ceiling
 # - histogram: a hashref keyed by the answer type
 # 
 # For each answer $a to question $i,
-# $self->{'question'}->[$i]->{'histogram'}->{$a} has keys/values:
+# $self->{'questions'}->[$i]->{'histogram'}->{$a} has keys/values:
 # - count: number of students selecting this response
 # - mean: mean of total for those students who selected this response
 # - weight: score for students who selected this response
 #           (I think this can be found in student_scoring_base)
 sub analyze {
+    # analyze the total 
+    my ($self) = @_;
+    @totals = map {$_->{'mark'}} @{$self->{'marks'}};
+    $total_stats = Statistics::Descriptive::Full->new();
+    $total_stats->add_data(@totals);
+    $summary = $self->{'summary'};
+    #TODO: Rub the next four lines DRY.
+    $summary->{'mean'} = $total_stats->mean();
+    $summary->{'median'} = $total_stats->median();
+    $summary->{'standard_deviation'} = $total_stats->standard_deviation();
+    $summary->{'min'} = $total_stats->min();
+    $summary->{'count'} = $total_stats->count();
+
+    # analyze each question
+    for my $question (@{$self->{'questions'}}) {
+        $title = $question->{'title'};
+        $number = $question->{'question'};
+        @question_scores = map {$_->{$title}->{'score'}} @{$self->{'responses'}};
+        $question_stats = Statistics::Descriptive::Full->new();
+        $question_stats->add_data(@question_scores);
+        $question->{'mean'} = $question_stats->mean();
+        $question->{'median'} = $question_stats->median();
+        $question->{'standard_deviation'} = $question_stats->standard_deviation();
+        $question->{'min'} = $question_stats->min();
+        $question->{'max'} = $question_stats->max();
+        $question->{'count'} = $question_stats->count();
+        $question->{'ceiling'} = $self->{'_scoring'}->question_maxmax($number);
+        $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+        my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
+        $question->{'discrimination'} = $r;
+    }
 }
 
 
@@ -186,6 +218,7 @@ sub export {
     # open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
 
     $self->pre_process();
+    $self->analyze();
 
     $data = {
         'metadata' => $self->{'metadata'},
