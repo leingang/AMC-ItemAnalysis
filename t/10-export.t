@@ -6,7 +6,6 @@ use Test::More;
 
 use AMC::Export::ItemAnalysis;
 
-delete @ENV{qw(IFS PATH CDPATH ENV BASH_ENV)};   # Make %ENV safer
 my $whoami = scalar getpwuid($<);
 if ($whoami eq 'matthew') {
     plan tests => 1;
