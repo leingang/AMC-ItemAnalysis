@@ -62,7 +62,7 @@ sub parse_string {
 }
 
 
-# Import exam, question, and response data into $self.
+# Import exam, question, and submission data into $self.
 # 
 # $self->{'marks'} is populated in AMC::Export::pre_process().  It is an arrayref,
 # with one item for each student.  For each $i, 
@@ -74,12 +74,12 @@ sub parse_string {
 # - title: unique string identifying the question
 # - question: integer ID in database
 #
-# $self->{'responses'} is populated by looking up each student's responses and results.
+# $self->{'submissions'} is populated by looking up each student's responses and results.
 # These come from AMC::DataModule::scoring::question_result and 
-# AMC::ItemAnalysis::capture::question_response.  The $ith element of $self->{'responses'}.
+# AMC::ItemAnalysis::capture::question_response.  The $ith element of $self->{'submissions'}.
 # is the complete list of responses for the student in the $ith element of $self->{'marks'}. 
-# For each $i, $self->{'responses'}->[$i] is a hashref, keyed on question titles.
-# For each question title $k, $self->{'responses'}->[$i]->{$k} has keys/values
+# For each $i, $self->{'submissions'}->[$i] is a hashref, keyed on question titles.
+# For each question title $k, $self->{'submissions'}->[$i]->{$k} has keys/values
 # - score: score by student $i on question $k
 # - response: response by student $i on question $k
 # - index: question number (not sure if this is in the DB or on the student's paper).
@@ -89,9 +89,8 @@ sub parse_string {
 # TODO: get additional metadata from the TeX file, if possible.
 #
 # $self->{'summary'} will contain any summary statistics about the exam total score.
-# This method only sets a 'max' key/value.
-# Later methods will add to it.
-
+# This method only sets a 'ceiling' key/value (maximum possible score, where as 'max'
+# is maximum achieved score).  Later methods will add to it.
 sub pre_process {
     my ($self) = @_;
     print "get_data:BEGIN\n";
@@ -99,9 +98,9 @@ sub pre_process {
     # put this in $self instead
     # $o = {};
     # $o->{'items'} = []; # replace with $self->{'questions'}
-    # $o->{'responses'} = []; # replace with $self->{'responses'}
+    # $o->{'submissions'} = []; # replace with $self->{'submissions'}
     # $o->{'totals'} = $self->{'marks'}; # just use $self->{'marks'}
-    $self->{'responses'} = [];
+    $self->{'submissions'} = [];
     $exam_name = $self->{'out.nom'} ? $self->{'out.nom'} : "Untitled Exam" ;
 
     $marks = $self->{'marks'};
@@ -125,32 +124,41 @@ sub pre_process {
 
     # Loop on each student mark record
     # Since we're looping through @$marks and appending to both @{$o->{'totals'}}
-    # and @{$o->{'responses'}}, those arrays will be lined up by student.
+    # and @{$o->{'submissions'}}, those arrays will be lined up by student.
     # For now, there's no need to record the student number, copy number,
     # or any personally identifying information about the student as a key.
     for my $m (@$marks) {
-        # push @{$o->{'totals'}}, $m->{'mark'};
         # @sc is a list of the student number and copy number
         # It can't be a hash key but we could stringify it.
         my @sc=($m->{'student'},$m->{'copy'});
+        $ssb = $self->{'_scoring'}->student_scoring_base(
+            @sc,
+            $self->{'_capture'}->{'darkness_threshold'},
+            $self->{'_capture'}->{'darkness_threshold_up'}
+        );
         $score_rec = {};
         for my $q (@questions) {
-            $response = $self->{'_capture'}->question_response(@sc,$q->{'question'});
-            $result = $self->{'_scoring'}->question_result(@sc,$q->{'question'});
-            $score_rec->{$q->{'title'}} = {
-                'index' => $q->{'question'},
+            my $qn = $q->{'question'}; # Question number
+            my $qt = $q->{'title'};    # Question name
+            $response = $self->{'_capture'}->question_response(@sc,$qn);
+            $result = $self->{'_scoring'}->question_result(@sc,$qn);
+            $score_rec->{$qt} = {
+                'index' => $qn,
                 'score' => $result->{'score'},
                 'max' => $result->{'max'},
-                'response' => $response
+                'response' => $response,
+                # we're adding the scoring base here mainly for introspection/debugging.
+                # Remove it later?
+                'scoring_base' => $ssb->{'questions'}->{$qn}
             };
         }
-        push @{$self->{'responses'}}, $score_rec;
+        push @{$self->{'submissions'}}, $score_rec;
     }
 
     # exam summary statistics and metadata
     $self->{'summary'} = {};
     $self->{'metadata'} = {};
-    if ($max) { $self->{'summary'}->{'max'} = $max; }
+    if ($max) { $self->{'summary'}->{'ceiling'} = $max; }
     if ($exam_name) { $self->{'metadata'}->{'title'} = $exam_name; }
     return;
 
@@ -172,36 +180,78 @@ sub pre_process {
 # - weight: score for students who selected this response
 #           (I think this can be found in student_scoring_base)
 sub analyze {
-    # analyze the total 
     my ($self) = @_;
-    @totals = map {$_->{'mark'}} @{$self->{'marks'}};
+    $scoring = $self->{'_scoring'};
+
+    # analyze the total     
+    $marks = $self->{'marks'};
+    @totals = map {$_->{'mark'}} @$marks;
     $total_stats = Statistics::Descriptive::Full->new();
     $total_stats->add_data(@totals);
     $summary = $self->{'summary'};
-    #TODO: Rub the next four lines DRY.
+    #TODO: Rub the next five lines DRY.
     $summary->{'mean'} = $total_stats->mean();
     $summary->{'median'} = $total_stats->median();
     $summary->{'standard_deviation'} = $total_stats->standard_deviation();
     $summary->{'min'} = $total_stats->min();
+    $summary->{'max'} = $total_stats->max();
     $summary->{'count'} = $total_stats->count();
 
     # analyze each question
     for my $question (@{$self->{'questions'}}) {
         $title = $question->{'title'};
         $number = $question->{'question'};
-        @question_scores = map {$_->{$title}->{'score'}} @{$self->{'responses'}};
+        @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
         $question_stats = Statistics::Descriptive::Full->new();
         $question_stats->add_data(@question_scores);
+        # TODO: Rub the next six lines DRY.
         $question->{'mean'} = $question_stats->mean();
         $question->{'median'} = $question_stats->median();
         $question->{'standard_deviation'} = $question_stats->standard_deviation();
         $question->{'min'} = $question_stats->min();
         $question->{'max'} = $question_stats->max();
         $question->{'count'} = $question_stats->count();
-        $question->{'ceiling'} = $self->{'_scoring'}->question_maxmax($number);
+        $question->{'ceiling'} = $scoring->question_maxmax($number);
         $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+        # Compute correlation of this item with the total.
         my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
         $question->{'discrimination'} = $r;
+
+        # create the histogram
+        # We do this by sorting the reponses by the answers and collecting the total scores.
+        # there might be a map / filter / accumulate way to do this,
+        # but remember that the scoring_base may depend on the question *and* the student.
+        $histogram = $question->{'histogram'} = {};
+        # the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
+        # Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
+        $total_by_response = {};    
+        for my $i (0 .. $#{$self->{'submissions'}}) {
+            $submission = $self->{'submissions'}->[$i];    
+            $response = $submission->{$title};
+            $sb = $response->{'scoring_base'};
+            for my $answer (@{$sb->{'answers'}}) {
+                $an = $answer->{'answer'}; # answer number
+                unless (defined $histogram->{$an}) {
+                    $histogram->{$an} = {};
+                    $total_by_response->{$an} = [];
+                }
+                if ($answer->{'ticked'}) {
+                    push @{$total_by_response->{$an}}, $marks->[$i]->{'mark'};
+                }
+                # TODO: Figure out the answer's *weight*
+                # This comes from the strategy, but it's coded.
+                # perhaps some code in AMC::DataModule::scoring takes care of that?
+            }
+        }
+        $total_by_response_stats = Statistics::Descriptive::Sparse->new;
+        for my $an (keys %{$histogram}) {
+            $total_by_response_stats->clear;
+            $total_by_response_stats->add_data(@{$total_by_response->{$an}});
+            $histogram->{$an}->{'mean'} = $total_by_response_stats->mean;
+            $histogram->{$an}->{'count'} = $total_by_response_stats->count;
+            $histogram->{$an}->{'frequency'} =
+                $total_by_response_stats->count / $self->{'summary'}->{'count'};
+        }        
     }
 }
 
@@ -224,7 +274,7 @@ sub export {
         'metadata' => $self->{'metadata'},
         'summary' => $self->{'summary'},
         'items' => $self->{'questions'},
-        'responses' => $self->{'responses'},
+        'submissions' => $self->{'submissions'},
         'totals' => $self->{'marks'}
     };
 
