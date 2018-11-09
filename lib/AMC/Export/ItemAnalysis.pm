@@ -136,13 +136,13 @@ sub pre_process {
             $self->{'_capture'}->{'darkness_threshold'},
             $self->{'_capture'}->{'darkness_threshold_up'}
         );
-        $score_rec = {};
+        $submission = {};
         for my $q (@questions) {
             my $qn = $q->{'question'}; # Question number
             my $qt = $q->{'title'};    # Question name
             $response = $self->{'_capture'}->question_response(@sc,$qn);
             $result = $self->{'_scoring'}->question_result(@sc,$qn);
-            $score_rec->{$qt} = {
+            $submission->{$qt} = {
                 'index' => $qn,
                 'score' => $result->{'score'},
                 'max' => $result->{'max'},
@@ -152,7 +152,7 @@ sub pre_process {
                 'scoring_base' => $ssb->{'questions'}->{$qn}
             };
         }
-        push @{$self->{'submissions'}}, $score_rec;
+        push @{$self->{'submissions'}}, $submission;
     }
 
     # exam summary statistics and metadata
