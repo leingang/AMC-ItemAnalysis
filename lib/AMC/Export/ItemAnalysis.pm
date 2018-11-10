@@ -212,7 +212,9 @@ sub analyze {
         $question->{'max'} = $question_stats->max();
         $question->{'count'} = $question_stats->count();
         $question->{'ceiling'} = $scoring->question_maxmax($number);
-        $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+	if($question->{'ceiling'} != 0) {
+	    $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+	}
         # Compute correlation of this item with the total.
         my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
         $question->{'discrimination'} = $r;
