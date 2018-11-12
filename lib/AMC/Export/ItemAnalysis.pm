@@ -274,13 +274,7 @@ sub analyze {
     $total_stats = Statistics::Descriptive::Full->new();
     $total_stats->add_data(@totals);
     $summary = $self->{'summary'};
-    #TODO: Rub the next five lines DRY.
-    $summary->{'mean'} = $total_stats->mean();
-    $summary->{'median'} = $total_stats->median();
-    $summary->{'standard_deviation'} = $total_stats->standard_deviation();
-    $summary->{'min'} = $total_stats->min();
-    $summary->{'max'} = $total_stats->max();
-    $summary->{'count'} = $total_stats->count();
+    $self->compute_summary_statistics($total_stats,$summary);
 
     # analyze each question
     for my $question (@{$self->{'questions'}}) {
@@ -289,13 +283,7 @@ sub analyze {
         @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
         $question_stats = Statistics::Descriptive::Full->new();
         $question_stats->add_data(@question_scores);
-        # TODO: Rub the next six lines DRY.
-        $question->{'mean'} = $question_stats->mean();
-        $question->{'median'} = $question_stats->median();
-        $question->{'standard_deviation'} = $question_stats->standard_deviation();
-        $question->{'min'} = $question_stats->min();
-        $question->{'max'} = $question_stats->max();
-        $question->{'count'} = $question_stats->count();
+        $self->compute_summary_statistics($question_stats,$question);
         $question->{'ceiling'} = $scoring->question_maxmax($number);
         $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
         # Compute correlation of this item with the total.
@@ -344,6 +332,22 @@ sub analyze {
             $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
             $histogram->{$an}->{'weight'} = $weight_by_response_stats->mean;
         }        
+    }
+}
+
+# compute summary statistics for a data set
+#
+# helper routine to turn two repeated lines of code into one
+#
+# arguments:
+#     $analyzer (Statistics::Descriptive): object that computes the stats
+#     $dest: destination for those statistics
+#
+# Possible improvements: return value, select stats...
+sub compute_summary_statistics {
+    my ($self,$analyzer,$dest) = @_;
+    for (qw(mean median standard_deviation min max count)) {
+        $dest->{$_} = $analyzer->$_();
     }
 }
 
