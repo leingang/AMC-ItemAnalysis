@@ -5,6 +5,7 @@ use AMC::Basic;
 use AMC::Export;
 use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
+use File::Basename;
 use YAML::Tiny;
 use Statistics::Descriptive;
 
@@ -365,21 +366,32 @@ sub export {
 
     $self->pre_process();
     $self->analyze();
+    
+    my %suffix_to_function = ('.yaml' => 'yaml', '.tex' => 'latex', '.pdf' => 'pdf');
+    my @suffixes = keys %suffix_to_function;
+    my ($filename, $dirs, $suffix) = fileparse($fichier,@suffixes);
+    print "fileparse result: ", Dumper($filename, $dirs, $suffix);
+    print "suffix: $suffix\n";    
+    my $export_function = 'export_' . $suffix_to_function{$suffix};
+    print "export_function: $export_function\n";
+    $self->$export_function($fichier);
+}
 
-    $data = {
+sub export_yaml {
+    my ($self,$fichier)=@_;
+    my $data = {
         'metadata' => $self->{'metadata'},
         'summary' => $self->{'summary'},
         'items' => $self->{'questions'},
         'submissions' => $self->{'submissions'},
         'totals' => $self->{'marks'}
     };
-
-    # We're just going to dump it to the output file    
     my $yaml = YAML::Tiny->new($data);
     $yaml->write($fichier);
-    # print OUT Dumper($data);
-    
-    #close(OUT);
+}
+
+sub export_latex {
+    my ($self,$fichier)=@_;
 }
 
 1;
