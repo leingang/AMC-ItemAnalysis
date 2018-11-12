@@ -3,11 +3,13 @@ package AMC::Export::ItemAnalysis;
 
 use AMC::Basic;
 use AMC::Export;
+use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
 use YAML::Tiny;
 use Statistics::Descriptive;
 
 use Encode;
+use Storable 'dclone';
 
 @ISA=("AMC::Export");
 
@@ -39,6 +41,12 @@ sub load {
     for my $var ('darkness_threshold','darkness_threshold_up') {
         $self->{'_capture'}->{$var} = $self->{'_scoring'}->variable_transaction($var);
     }
+    $self->{'_score'} = AMC::Scoring::new(
+        'seuil'    => $self->{'_capture'}->{'darkness_threshold'},
+        'seuil_up' => $self->{'_capture'}->{'darkness_threshold_up'},
+        '_scoring' => $self->{'_scoring'},
+        '_capture' => $self->{'capture'}
+    );
     print "done\n";
     print "load: END\n";
 }
@@ -136,6 +144,7 @@ sub pre_process {
             $self->{'_capture'}->{'darkness_threshold'},
             $self->{'_capture'}->{'darkness_threshold_up'}
         );
+        $self->weight_student_scoring_base($sc->[0],$ssb);
         $submission = {};
         for my $q (@questions) {
             my $qn = $q->{'question'}; # Question number
@@ -162,6 +171,82 @@ sub pre_process {
     if ($exam_name) { $self->{'metadata'}->{'title'} = $exam_name; }
     return;
 
+}
+
+# add weights to the student scoring base
+# the C<student_scoring_base> useful data to compute questions scores for a
+# particular student (identified by $student and $copy), as a reference to a hash
+# grouping questions and answers. For exemple :
+#
+# 'main_strategy'=>"",
+# 'questions'=>
+# { 1 =>{ 'question'=>1,
+#         'title' => 'questionID',
+#         'type'=>1,
+#         'indicative'=>0,
+#         'strategy'=>'',
+#         'answers'=>[ { 'question'=>1, 'answer'=>1,
+#                        'correct'=>1, 'ticked'=>0, 'strategy'=>"b=2" },
+#                      {'question'=>1, 'answer'=>2,
+#                        'correct'=>0, 'ticked'=>0, 'strategy'=>"" },
+#                    ],
+#       },
+#  ...
+# }
+# This subroutine adds to each answer the score that would be earned for 
+# *just that box* were it ticked
+sub weight_student_scoring_base {
+    my ($self, $student, $ssb) = @_;
+    $scorer = $self->{'_score'};
+    while (my ($k,$q) = each (%{$ssb->{'questions'}})) {
+        # baseline question score
+        $scorer->prepare_question($q);
+        $scorer->set_type(0);
+        ($old_xx,$old_why) = $scorer->score_question($student,$q,0);
+        # clone the question so we can test scores for
+        # individually ticked boxes
+        if ($q->{'type'} == 1) {
+            # mutiple choice question with a single correct 
+            # answer.  To find the weight, we zero out all answers
+            # in the clone and tick answer $i.
+            $qc = dclone $q;
+            for my $i (0 .. $#{$q->{'answers'}}) {
+                # zero out 'ticked' for all answers in the clone
+                # except $i
+                for my $j (0 .. $#{$q->{'answers'}}) {
+                    $qc->{'answers'}->[$j]->{'ticked'} = ($i == $j ? 1 : 0);
+                }
+                $scorer->prepare_question($qc);
+                $scorer->set_type(0);
+                ($new_xx,$new_why) = $scorer->score_question($student,$qc,0);
+                $q->{'answers'}->[$i]->{'weight'} = $new_xx;
+            }
+        }
+        elsif ($q->{'type'} == 2) {
+            # multiple choice question with multiple correct answers
+            # and *not* ticking boxes could lead to points.
+            # So we compute the weight of each by flipping it and comparing
+            # to the original.
+            # NOTE: This may not work in NOTA answers. 
+            for my $i (0 .. $#{$q->{'answers'}}) { 
+                # for my $j (0 .. $#{$q->{'answers'}}) {
+                #     $orig_ticked = $q->{'answers'}->[$j]->{'ticked'};
+                #     $qc->{'answers'}->[$j]->{'ticked'} 
+                #         = ($i == $j ? (1 - $orig_ticked) : $orig_ticked);
+                # }
+                # reclone
+                $qc = dclone $q;
+                $scorer->prepare_question($qc);
+                $scorer->set_type(0);
+                $qc->{'answers'}->[$i]->{'ticked'} = 1 - $q->{'answers'}->[$i]->{'ticked'};
+                ($new_xx,$new_why) = $scorer->score_question($student,$qc,0);
+                $q->{'answers'}->[$i]->{'weight'} = abs($old_xx-$new_xx);
+            }
+        }
+        else {
+            die "Bad question type!";
+        }
+    }
 }
 
 # Do the analysis.  These keys/values should be set:
@@ -224,7 +309,8 @@ sub analyze {
         $histogram = $question->{'histogram'} = {};
         # the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
         # Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
-        $total_by_response = {};    
+        $total_by_response = {};   
+        $weight_by_response = {}; 
         for my $i (0 .. $#{$self->{'submissions'}}) {
             $submission = $self->{'submissions'}->[$i];    
             $response = $submission->{$title};
@@ -234,7 +320,9 @@ sub analyze {
                 unless (defined $histogram->{$an}) {
                     $histogram->{$an} = {};
                     $total_by_response->{$an} = [];
+                    $weight_by_response->{$an} = [];
                 }
+                push @{$weight_by_response->{$an}}, $answer->{'weight'};
                 if ($answer->{'ticked'}) {
                     push @{$total_by_response->{$an}}, $marks->[$i]->{'mark'};
                 }
@@ -244,6 +332,7 @@ sub analyze {
             }
         }
         $total_by_response_stats = Statistics::Descriptive::Sparse->new;
+        $weight_by_response_stats = Statistics::Descriptive::Sparse->new;
         for my $an (keys %{$histogram}) {
             $total_by_response_stats->clear;
             $total_by_response_stats->add_data(@{$total_by_response->{$an}});
@@ -251,6 +340,9 @@ sub analyze {
             $histogram->{$an}->{'count'} = $total_by_response_stats->count;
             $histogram->{$an}->{'frequency'} =
                 $total_by_response_stats->count / $self->{'summary'}->{'count'};
+            $weight_by_response_stats->clear;
+            $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
+            $histogram->{$an}->{'weight'} = $weight_by_response_stats->mean;
         }        
     }
 }
