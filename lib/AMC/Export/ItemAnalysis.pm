@@ -255,8 +255,10 @@ sub weight_student_scoring_base {
 # - mean: average
 # - max: maximum score achieved
 # - ceiling: maximum score possible
-# - discrimintation: correlation of item with total
+# - discrimination: correlation of item with total
+# - discrimination_class: English classification of discrimination
 # - difficulty: mean/ceiling
+# - difficulty_class: English classification of difficulty.
 # - histogram: a hashref keyed by the answer type
 # 
 # For each answer $a to question $i,
@@ -287,9 +289,11 @@ sub analyze {
         $self->compute_summary_statistics($question_stats,$question);
         $question->{'ceiling'} = $scoring->question_maxmax($number);
         $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+        $question->{'difficulty_class'} = $self->classify_difficulty($question);
         # Compute correlation of this item with the total.
         my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
         $question->{'discrimination'} = $r;
+        $question->{'discrimination_class'} = $self->classify_discrimination($question);
 
         # create the histogram
         # We do this by sorting the reponses by the answers and collecting the total scores.
@@ -335,6 +339,45 @@ sub analyze {
         }        
     }
 }
+
+# classify the difficulty of an item 
+#
+# ScorePak® arbitrarily classifies item difficulty as “easy” if the index is
+# 85% or above; “moderate” if it is between 51 and 84%; and “hard” if it is 
+# 50% or below.
+sub classify_difficulty {
+    my ($self,$q) = @_;
+    $diff = $q->{'difficulty'};
+    if ($diff >= 0.85) {
+        return "Easy"
+    }
+    elsif ($diff >= 0.5) {
+        return "Moderate"
+    }
+    else {
+        return "Hard"
+    }
+}
+
+
+# classify the discrimination of an item 
+#
+# ScorePak® classifies item discrimination as “good” if the index is above 
+# .30; “fair” if it is between .10 and.30; and “poor” if it is below .10.
+sub classify_discrimination {
+    my ($self,$q) = @_;
+    $diff = $q->{'discrimination'};
+    if ($diff >= 0.3) {
+        return "Good"
+    }
+    elsif ($diff >= 0.1) {
+        return "Fair"
+    }
+    else {
+        return "Poor"
+    }
+}
+
 
 # compute summary statistics for a data set
 #
@@ -390,8 +433,79 @@ sub export_yaml {
     $yaml->write($fichier);
 }
 
+# export latex file
+# 
+# Decided against using a templating engine since we are only writing a single file.
+# I may regret that later.
 sub export_latex {
     my ($self,$fichier)=@_;
+    # preamble to table first row
+    open(my $fh, '>', $fichier) or die "Could not open file '$fichier' $!";
+    # We use single quote here so we don't have to escape all the backslashes.
+    print $fh  q(
+\documentclass{article}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage[letterpaper,margin=0.5in]{geometry}
+\usepackage{tikz}
+\tikzset{
+    bar/.style={xscale=2,yscale=0.25,draw=black,fill=gray},
+    correct/.style={fill=green!50!black},
+    incorrect/.style={fill=red!50!white}
+}
+\usepackage{pgfplots}
+\usepackage{longtable}
+\usepackage{siunitx}
+\newlength{\itemrowsep}
+\setlength{\itemrowsep}{2ex}
+
+\begin{document}
+\begin{longtable}{rSSrlSlSSSrSl}
+\hline
+\bfseries Item 
+& \bfseries Mean 
+& \bfseries StDev 
+& \multicolumn{2}{c}{\bfseries Difficulty}
+& \multicolumn{2}{c}{\bfseries Discrimination}
+& \bfseries ans 
+& \bfseries Weight 
+& \bfseries Means 
+& \multicolumn{2}{c}{\bfseries Frequencies}
+& \bfseries Distribution \\\\
+\hline
+);
+    # print stats for each item:
+
+    for my $i (0 .. $#{$self->{'questions'}}) {
+        $q = $self->{'questions'}->[$i];
+        print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
+        print $fh  sprintf ("%.2f", $q->{'mean'}), " & ";
+        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " & ";
+        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " & ";
+        print $fh  $q->{'difficulty_class'} , " & "; 
+        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
+        print $fh  $q->{'discrimination_class'} , " & "; 
+        my $row = 0;
+        @answers = sort keys (%{$q->{'histogram'}});
+        for my $k (@answers) {
+            $a = $q->{'histogram'}->{$k};
+            if ($row++) {
+                print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
+            }
+            print $fh $k, " & ";
+            print $fh sprintf("%.2f", $a->{'weight'}), " & ";
+            print $fh sprintf("%.2f", $a->{'mean'}), " & ";
+            print $fh $a->{'count'}, " & ";
+            print $fh sprintf("\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100), " & ";
+            print $fh sprintf("\\tikz{\\draw[bar] (0,0) rectangle (%.2f,1);}", $a->{'frequency'});
+        }
+        print $fh '\\\\[\itemsep]', "\n";
+    }
+    # end of table and document
+    print $fh q(\end{longtable}
+\end{document}
+    );
+    close $fh;
 }
 
 1;
