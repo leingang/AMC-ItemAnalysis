@@ -289,8 +289,10 @@ sub analyze {
         $question_stats->add_data(@question_scores);
         $self->compute_summary_statistics($question_stats,$question);        
         $question->{'ceiling'} = $scoring->question_maxmax($number);
-        $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
-        $question->{'difficulty_class'} = $self->classify_difficulty($question);
+       	if ($question->{'ceiling'} != 0) {
+            $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+            $question->{'difficulty_class'} = $self->classify_difficulty($question);
+	      }
         $question->{'type_class'} = $self->classify_type($question);
         # Compute correlation of this item with the total.
         my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
