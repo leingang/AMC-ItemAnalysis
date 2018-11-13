@@ -3,11 +3,14 @@ package AMC::Export::ItemAnalysis;
 
 use AMC::Basic;
 use AMC::Export;
+use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
+use File::Basename;
 use YAML::Tiny;
 use Statistics::Descriptive;
 
 use Encode;
+use Storable 'dclone';
 
 @ISA=("AMC::Export");
 
@@ -39,6 +42,12 @@ sub load {
     for my $var ('darkness_threshold','darkness_threshold_up') {
         $self->{'_capture'}->{$var} = $self->{'_scoring'}->variable_transaction($var);
     }
+    $self->{'_score'} = AMC::Scoring::new(
+        'seuil'    => $self->{'_capture'}->{'darkness_threshold'},
+        'seuil_up' => $self->{'_capture'}->{'darkness_threshold_up'},
+        '_scoring' => $self->{'_scoring'},
+        '_capture' => $self->{'capture'}
+    );
     print "done\n";
     print "load: END\n";
 }
@@ -136,13 +145,14 @@ sub pre_process {
             $self->{'_capture'}->{'darkness_threshold'},
             $self->{'_capture'}->{'darkness_threshold_up'}
         );
-        $score_rec = {};
+        $self->weight_student_scoring_base($sc->[0],$ssb);
+        $submission = {};
         for my $q (@questions) {
             my $qn = $q->{'question'}; # Question number
             my $qt = $q->{'title'};    # Question name
             $response = $self->{'_capture'}->question_response(@sc,$qn);
             $result = $self->{'_scoring'}->question_result(@sc,$qn);
-            $score_rec->{$qt} = {
+            $submission->{$qt} = {
                 'index' => $qn,
                 'score' => $result->{'score'},
                 'max' => $result->{'max'},
@@ -151,8 +161,9 @@ sub pre_process {
                 # Remove it later?
                 'scoring_base' => $ssb->{'questions'}->{$qn}
             };
+            $q->{'type'} = $ssb->{'questions'}->{$qn}->{'type'};
         }
-        push @{$self->{'submissions'}}, $score_rec;
+        push @{$self->{'submissions'}}, $submission;
     }
 
     # exam summary statistics and metadata
@@ -164,13 +175,91 @@ sub pre_process {
 
 }
 
+# add weights to the student scoring base
+# the C<student_scoring_base> useful data to compute questions scores for a
+# particular student (identified by $student and $copy), as a reference to a hash
+# grouping questions and answers. For exemple :
+#
+# 'main_strategy'=>"",
+# 'questions'=>
+# { 1 =>{ 'question'=>1,
+#         'title' => 'questionID',
+#         'type'=>1,
+#         'indicative'=>0,
+#         'strategy'=>'',
+#         'answers'=>[ { 'question'=>1, 'answer'=>1,
+#                        'correct'=>1, 'ticked'=>0, 'strategy'=>"b=2" },
+#                      {'question'=>1, 'answer'=>2,
+#                        'correct'=>0, 'ticked'=>0, 'strategy'=>"" },
+#                    ],
+#       },
+#  ...
+# }
+# This subroutine adds to each answer the score that would be earned for 
+# *just that box* were it ticked
+sub weight_student_scoring_base {
+    my ($self, $student, $ssb) = @_;
+    $scorer = $self->{'_score'};
+    while (my ($k,$q) = each (%{$ssb->{'questions'}})) {
+        # baseline question score
+        $scorer->prepare_question($q);
+        $scorer->set_type(0);
+        ($old_xx,$old_why) = $scorer->score_question($student,$q,0);
+        # clone the question so we can test scores for
+        # individually ticked boxes
+        if ($q->{'type'} == 1) {
+            # mutiple choice question with a single correct 
+            # answer.  To find the weight, we zero out all answers
+            # in the clone and tick answer $i.
+            $qc = dclone $q;
+            for my $i (0 .. $#{$q->{'answers'}}) {
+                # zero out 'ticked' for all answers in the clone
+                # except $i
+                for my $j (0 .. $#{$q->{'answers'}}) {
+                    $qc->{'answers'}->[$j]->{'ticked'} = ($i == $j ? 1 : 0);
+                }
+                $scorer->prepare_question($qc);
+                $scorer->set_type(0);
+                ($new_xx,$new_why) = $scorer->score_question($student,$qc,0);
+                $q->{'answers'}->[$i]->{'weight'} = $new_xx;
+            }
+        }
+        elsif ($q->{'type'} == 2) {
+            # multiple choice question with multiple correct answers
+            # and *not* ticking boxes could lead to points.
+            # So we compute the weight of each by flipping it and comparing
+            # to the original.
+            # NOTE: This may not work in NOTA answers. 
+            for my $i (0 .. $#{$q->{'answers'}}) { 
+                # for my $j (0 .. $#{$q->{'answers'}}) {
+                #     $orig_ticked = $q->{'answers'}->[$j]->{'ticked'};
+                #     $qc->{'answers'}->[$j]->{'ticked'} 
+                #         = ($i == $j ? (1 - $orig_ticked) : $orig_ticked);
+                # }
+                # reclone
+                $qc = dclone $q;
+                $scorer->prepare_question($qc);
+                $scorer->set_type(0);
+                $qc->{'answers'}->[$i]->{'ticked'} = 1 - $q->{'answers'}->[$i]->{'ticked'};
+                ($new_xx,$new_why) = $scorer->score_question($student,$qc,0);
+                $q->{'answers'}->[$i]->{'weight'} = abs($old_xx-$new_xx);
+            }
+        }
+        else {
+            die "Bad question type!";
+        }
+    }
+}
+
 # Do the analysis.  These keys/values should be set:
 # For each question in @{$self->{'questions'}},
 # - mean: average
 # - max: maximum score achieved
 # - ceiling: maximum score possible
-# - discrimintation: correlation of item with total
+# - discrimination: correlation of item with total
+# - discrimination_class: English classification of discrimination
 # - difficulty: mean/ceiling
+# - difficulty_class: English classification of difficulty.
 # - histogram: a hashref keyed by the answer type
 # 
 # For each answer $a to question $i,
@@ -189,13 +278,7 @@ sub analyze {
     $total_stats = Statistics::Descriptive::Full->new();
     $total_stats->add_data(@totals);
     $summary = $self->{'summary'};
-    #TODO: Rub the next five lines DRY.
-    $summary->{'mean'} = $total_stats->mean();
-    $summary->{'median'} = $total_stats->median();
-    $summary->{'standard_deviation'} = $total_stats->standard_deviation();
-    $summary->{'min'} = $total_stats->min();
-    $summary->{'max'} = $total_stats->max();
-    $summary->{'count'} = $total_stats->count();
+    $self->compute_summary_statistics($total_stats,$summary);
 
     # analyze each question
     for my $question (@{$self->{'questions'}}) {
@@ -204,20 +287,17 @@ sub analyze {
         @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
         $question_stats = Statistics::Descriptive::Full->new();
         $question_stats->add_data(@question_scores);
-        # TODO: Rub the next six lines DRY.
-        $question->{'mean'} = $question_stats->mean();
-        $question->{'median'} = $question_stats->median();
-        $question->{'standard_deviation'} = $question_stats->standard_deviation();
-        $question->{'min'} = $question_stats->min();
-        $question->{'max'} = $question_stats->max();
-        $question->{'count'} = $question_stats->count();
+        $self->compute_summary_statistics($question_stats,$question);        
         $question->{'ceiling'} = $scoring->question_maxmax($number);
-	if($question->{'ceiling'} != 0) {
-	    $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
-	}
+       	if ($question->{'ceiling'} != 0) {
+            $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+            $question->{'difficulty_class'} = $self->classify_difficulty($question);
+	      }
+        $question->{'type_class'} = $self->classify_type($question);
         # Compute correlation of this item with the total.
         my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
         $question->{'discrimination'} = $r;
+        $question->{'discrimination_class'} = $self->classify_discrimination($question);
 
         # create the histogram
         # We do this by sorting the reponses by the answers and collecting the total scores.
@@ -226,7 +306,8 @@ sub analyze {
         $histogram = $question->{'histogram'} = {};
         # the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
         # Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
-        $total_by_response = {};    
+        $total_by_response = {};   
+        $weight_by_response = {}; 
         for my $i (0 .. $#{$self->{'submissions'}}) {
             $submission = $self->{'submissions'}->[$i];    
             $response = $submission->{$title};
@@ -235,8 +316,11 @@ sub analyze {
                 $an = $answer->{'answer'}; # answer number
                 unless (defined $histogram->{$an}) {
                     $histogram->{$an} = {};
+                    $histogram->{$an}->{'correct'} = $answer->{'correct'};
                     $total_by_response->{$an} = [];
+                    $weight_by_response->{$an} = [];
                 }
+                push @{$weight_by_response->{$an}}, $answer->{'weight'};
                 if ($answer->{'ticked'}) {
                     push @{$total_by_response->{$an}}, $marks->[$i]->{'mark'};
                 }
@@ -246,6 +330,7 @@ sub analyze {
             }
         }
         $total_by_response_stats = Statistics::Descriptive::Sparse->new;
+        $weight_by_response_stats = Statistics::Descriptive::Sparse->new;
         for my $an (keys %{$histogram}) {
             $total_by_response_stats->clear;
             $total_by_response_stats->add_data(@{$total_by_response->{$an}});
@@ -253,7 +338,96 @@ sub analyze {
             $histogram->{$an}->{'count'} = $total_by_response_stats->count;
             $histogram->{$an}->{'frequency'} =
                 $total_by_response_stats->count / $self->{'summary'}->{'count'};
+            $weight_by_response_stats->clear;
+            $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
+            $histogram->{$an}->{'weight'} = $weight_by_response_stats->mean;
         }        
+    }
+}
+
+# classify the difficulty of an item 
+#
+# ScorePak® arbitrarily classifies item difficulty as “easy” if the index is
+# 85% or above; “moderate” if it is between 51 and 84%; and “hard” if it is 
+# 50% or below.
+sub classify_difficulty {
+    my ($self,$q) = @_;
+    $diff = $q->{'difficulty'};
+    if ($diff >= 0.85) {
+        return "Easy"
+    }
+    elsif ($diff >= 0.5) {
+        return "Moderate"
+    }
+    else {
+        return "Hard"
+    }
+}
+
+
+# classify the discrimination of an item 
+#
+# ScorePak® classifies item discrimination as “good” if the index is above 
+# .30; “fair” if it is between .10 and.30; and “poor” if it is below .10.
+sub classify_discrimination {
+    my ($self,$q) = @_;
+    $diff = $q->{'discrimination'};
+    if ($diff >= 0.3) {
+        return "Good"
+    }
+    elsif ($diff >= 0.1) {
+        return "Fair"
+    }
+    else {
+        return "Poor"
+    }
+}
+
+# classify the type of a problem
+#
+# Returns 'MC', 'MS', or 'FR' accordingly
+sub classify_type {
+    my ($self,$q) = @_;
+    if ($self->question_is_open($q)) {
+        return 'FR'
+    }
+    elsif ($q->{'type'} == 1) {
+        # TODO: fix above with an AMC constant
+        return 'MC'
+    }
+    elsif ($q->{'type'} == 2) {
+        return 'MS'
+    }
+    else {
+        return $q->{'type'};
+    }
+}
+
+# decide if a quesition is 'open' 
+# or free response
+# 
+# for now, we parse the title
+# but better would be to parse the source file
+# at load time.
+sub question_is_open {
+    my ($self,$q) = @_;
+    return ($q->{'title'} =~ /^FR/);
+}
+
+
+# compute summary statistics for a data set
+#
+# helper routine to turn two repeated lines of code into one
+#
+# arguments:
+#     $analyzer (Statistics::Descriptive): object that computes the stats
+#     $dest: destination for those statistics
+#
+# Possible improvements: return value, select stats...
+sub compute_summary_statistics {
+    my ($self,$analyzer,$dest) = @_;
+    for (qw(mean median standard_deviation min max count)) {
+        $dest->{$_} = $analyzer->$_();
     }
 }
 
@@ -271,21 +445,113 @@ sub export {
 
     $self->pre_process();
     $self->analyze();
+    
+    my %suffix_to_function = ('.yaml' => 'yaml', '.tex' => 'latex', '.pdf' => 'pdf');
+    my @suffixes = keys %suffix_to_function;
+    my ($filename, $dirs, $suffix) = fileparse($fichier,@suffixes);
+    my $export_function = 'export_' . $suffix_to_function{$suffix};
+    $self->$export_function($fichier);
+}
 
-    $data = {
+sub export_yaml {
+    my ($self,$fichier)=@_;
+    my $data = {
         'metadata' => $self->{'metadata'},
         'summary' => $self->{'summary'},
         'items' => $self->{'questions'},
         'submissions' => $self->{'submissions'},
         'totals' => $self->{'marks'}
     };
-
-    # We're just going to dump it to the output file    
     my $yaml = YAML::Tiny->new($data);
     $yaml->write($fichier);
-    # print OUT Dumper($data);
-    
-    #close(OUT);
+}
+
+# export latex file
+# 
+# Decided against using a templating engine since we are only writing a single file.
+# I may regret that later.
+sub export_latex {
+    my ($self,$fichier) = @_;
+    # preamble to table first row
+    open(my $fh, '>', $fichier) or die "Could not open file '$fichier' $!";
+    # We use single quote here so we don't have to escape all the backslashes.
+    print $fh  q(
+\documentclass{article}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage[letterpaper,margin=0.5in]{geometry}
+\usepackage{tikz}
+\tikzset{
+    bar/.style={xscale=2,yscale=0.25,draw=black,fill=gray},
+    correct/.style={fill=green!50!black},
+    incorrect/.style={fill=red!50!white}
+}
+\usepackage{pgfplots}
+\usepackage{longtable}
+\usepackage{siunitx}
+\newlength{\itemrowsep}
+\setlength{\itemrowsep}{2ex}
+
+\begin{document}
+\begin{longtable}{rSSrlSlSSSrSl}
+\hline
+\bfseries Item 
+& \bfseries Mean 
+& \bfseries StDev 
+& \multicolumn{2}{c}{\bfseries Difficulty}
+& \multicolumn{2}{c}{\bfseries Discrimination}
+& \bfseries ans 
+& \bfseries Weight 
+& \bfseries Means 
+& \multicolumn{2}{c}{\bfseries Frequencies}
+& \bfseries Distribution \\\\
+\hline
+);
+    # print stats for each item:
+
+    for my $i (0 .. $#{$self->{'questions'}}) {
+        $q = $self->{'questions'}->[$i];
+        print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
+        print $fh  sprintf ("%.2f", $q->{'mean'}), " & ";
+        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " & ";
+        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " & ";
+        print $fh  $q->{'difficulty_class'} , " & "; 
+        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
+        print $fh  $q->{'discrimination_class'} , " & "; 
+        my $row = 0;
+        @answers = sort keys (%{$q->{'histogram'}});
+        for my $k (@answers) {
+            $a = $q->{'histogram'}->{$k};
+            if ($row++) {
+                print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
+            }
+            print $fh $k, " & ";
+            print $fh sprintf("%.2f", $a->{'weight'}), " & ";
+            print $fh sprintf("%.2f", $a->{'mean'}), " & ";
+            print $fh $a->{'count'}, " & ";
+            print $fh sprintf("\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100), " & ";
+            $bar_key = $a->{'correct'} ? "correct" : "incorrect";
+            print $fh sprintf("\\tikz{\\draw[bar,$bar_key] (0,0) rectangle (%.2f,1);}", $a->{'frequency'});
+        }
+        print $fh '\\\\[\itemsep]', "\n";
+    }
+    # end of item table
+    print $fh q(\end{longtable}), "\n\n";
+    # print a problem metadata table
+    print $fh q(\begin{tabular}{rrc}), "\n";
+    print $fh q(\hline), "\n";
+    print $fh q(\bfseries Item number & \bfseries Item name & \bfseries Item type), '\\\\', "\n";
+    print $fh q(\hline), "\n";
+    for my $i (0 .. $#{$self->{'questions'}}) {
+        $q = $self->{'questions'}->[$i];
+        print $fh $i+1, " & ";
+        print $fh $q->{'title'}, " & ";
+        print $fh $q->{'type_class'};
+        print $fh '\\\\', "\n"; 
+    }
+    print $fh q(\end{tabular}), "\n";
+    print $fh q(\end{document}), "\n";
+    close $fh;
 }
 
 1;
