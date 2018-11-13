@@ -314,6 +314,7 @@ sub analyze {
                 $an = $answer->{'answer'}; # answer number
                 unless (defined $histogram->{$an}) {
                     $histogram->{$an} = {};
+                    $histogram->{$an}->{'correct'} = $answer->{'correct'};
                     $total_by_response->{$an} = [];
                     $weight_by_response->{$an} = [];
                 }
@@ -527,7 +528,8 @@ sub export_latex {
             print $fh sprintf("%.2f", $a->{'mean'}), " & ";
             print $fh $a->{'count'}, " & ";
             print $fh sprintf("\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100), " & ";
-            print $fh sprintf("\\tikz{\\draw[bar] (0,0) rectangle (%.2f,1);}", $a->{'frequency'});
+            $bar_key = $a->{'correct'} ? "correct" : "incorrect";
+            print $fh sprintf("\\tikz{\\draw[bar,$bar_key] (0,0) rectangle (%.2f,1);}", $a->{'frequency'});
         }
         print $fh '\\\\[\itemsep]', "\n";
     }
