@@ -161,6 +161,7 @@ sub pre_process {
                 # Remove it later?
                 'scoring_base' => $ssb->{'questions'}->{$qn}
             };
+            $q->{'type'} = $ssb->{'questions'}->{$qn}->{'type'};
         }
         push @{$self->{'submissions'}}, $submission;
     }
@@ -286,10 +287,11 @@ sub analyze {
         @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
         $question_stats = Statistics::Descriptive::Full->new();
         $question_stats->add_data(@question_scores);
-        $self->compute_summary_statistics($question_stats,$question);
+        $self->compute_summary_statistics($question_stats,$question);        
         $question->{'ceiling'} = $scoring->question_maxmax($number);
         $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
         $question->{'difficulty_class'} = $self->classify_difficulty($question);
+        $question->{'type_class'} = $self->classify_type($question);
         # Compute correlation of this item with the total.
         my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
         $question->{'discrimination'} = $r;
@@ -378,6 +380,37 @@ sub classify_discrimination {
     }
 }
 
+# classify the type of a problem
+#
+# Returns 'MC', 'MS', or 'FR' accordingly
+sub classify_type {
+    my ($self,$q) = @_;
+    if ($self->question_is_open($q)) {
+        return 'FR'
+    }
+    elsif ($q->{'type'} == 1) {
+        # TODO: fix above with an AMC constant
+        return 'MC'
+    }
+    elsif ($q->{'type'} == 2) {
+        return 'MS'
+    }
+    else {
+        return $q->{'type'};
+    }
+}
+
+# decide if a quesition is 'open' 
+# or free response
+# 
+# for now, we parse the title
+# but better would be to parse the source file
+# at load time.
+sub question_is_open {
+    my ($self,$q) = @_;
+    return ($q->{'title'} =~ /^FR/);
+}
+
 
 # compute summary statistics for a data set
 #
@@ -413,10 +446,7 @@ sub export {
     my %suffix_to_function = ('.yaml' => 'yaml', '.tex' => 'latex', '.pdf' => 'pdf');
     my @suffixes = keys %suffix_to_function;
     my ($filename, $dirs, $suffix) = fileparse($fichier,@suffixes);
-    print "fileparse result: ", Dumper($filename, $dirs, $suffix);
-    print "suffix: $suffix\n";    
     my $export_function = 'export_' . $suffix_to_function{$suffix};
-    print "export_function: $export_function\n";
     $self->$export_function($fichier);
 }
 
@@ -438,7 +468,7 @@ sub export_yaml {
 # Decided against using a templating engine since we are only writing a single file.
 # I may regret that later.
 sub export_latex {
-    my ($self,$fichier)=@_;
+    my ($self,$fichier) = @_;
     # preamble to table first row
     open(my $fh, '>', $fichier) or die "Could not open file '$fichier' $!";
     # We use single quote here so we don't have to escape all the backslashes.
@@ -501,10 +531,22 @@ sub export_latex {
         }
         print $fh '\\\\[\itemsep]', "\n";
     }
-    # end of table and document
-    print $fh q(\end{longtable}
-\end{document}
-    );
+    # end of item table
+    print $fh q(\end{longtable}), "\n\n";
+    # print a problem metadata table
+    print $fh q(\begin{tabular}{rrc}), "\n";
+    print $fh q(\hline), "\n";
+    print $fh q(\bfseries Item number & \bfseries Item name & \bfseries Item type), '\\\\', "\n";
+    print $fh q(\hline), "\n";
+    for my $i (0 .. $#{$self->{'questions'}}) {
+        $q = $self->{'questions'}->[$i];
+        print $fh $i+1, " & ";
+        print $fh $q->{'title'}, " & ";
+        print $fh $q->{'type_class'};
+        print $fh '\\\\', "\n"; 
+    }
+    print $fh q(\end{tabular}), "\n";
+    print $fh q(\end{document}), "\n";
     close $fh;
 }
 
