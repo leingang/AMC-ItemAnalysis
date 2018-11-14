@@ -537,7 +537,7 @@ sub export_latex {
 & \bfseries Means 
 & \multicolumn{2}{c}{\bfseries Frequencies}
 & \bfseries Distribution \\\\
-\hline
+\hline\endhead
 );
     # print stats for each item:
 
