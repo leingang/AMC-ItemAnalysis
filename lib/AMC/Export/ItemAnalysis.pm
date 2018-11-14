@@ -112,6 +112,8 @@ sub pre_process {
     $self->{'submissions'} = [];
     $exam_name = $self->{'out.nom'} ? $self->{'out.nom'} : "Untitled Exam" ;
 
+    $self->{'_scoring'}->begin_read_transaction('IAgt');
+    
     $marks = $self->{'marks'};
     my @codes;
     my @questions;
@@ -123,6 +125,10 @@ sub pre_process {
     #
     # Do we need @codes?
     $self->codes_questions(\@codes,\@questions,1);
+    for my $question (@questions) {
+       $question->{'ceiling'} = $self->{'_scoring'}->
+           question_maxmax($question->{'question'});
+    }
     $self->{'questions'} = \@questions;
 
     # look for the first mark that has a max
@@ -165,6 +171,8 @@ sub pre_process {
         }
         push @{$self->{'submissions'}}, $submission;
     }
+
+    $self->{'_scoring'}->end_transaction('IAgt');
 
     # exam summary statistics and metadata
     $self->{'summary'} = {};
@@ -270,7 +278,6 @@ sub weight_student_scoring_base {
 #           (I think this can be found in student_scoring_base)
 sub analyze {
     my ($self) = @_;
-    $scoring = $self->{'_scoring'};
 
     # analyze the total     
     $marks = $self->{'marks'};
@@ -286,7 +293,6 @@ sub analyze {
     $question_stats = Statistics::Descriptive::Full->new();
     for my $question (@{$self->{'questions'}}) {        
         $title = $question->{'title'};
-        # print "DEBUG: Analyzing question: ", $title, "\n";
         $number = $question->{'question'};
         @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
         $self->{'_debug.' . $title . '.scores'} = \@question_scores;
