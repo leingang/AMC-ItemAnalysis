@@ -17,7 +17,7 @@ use Storable 'dclone';
 use Data::Dumper;# for debugging
 
 sub new {
-    print "new: BEGIN\n";
+    # print "new: BEGIN\n";
     my $class = shift;
     my $self  = $class->SUPER::new();
     $self->{'out.nom'}="";
@@ -34,11 +34,11 @@ sub new {
 
 sub load {
     my ($self)=@_;
-    print "load: BEGIN", "\n";
+    # print "load: BEGIN", "\n";
     $self->SUPER::load();
     $self->{'_capture'}=$self->{'_data'}->module('capture');
     bless $self->{'_capture'}, 'AMC::ItemAnalysis::capture';
-    print "load: about to save variables...";
+    # print "load: about to save variables...";
     for my $var ('darkness_threshold','darkness_threshold_up') {
         $self->{'_capture'}->{$var} = $self->{'_scoring'}->variable_transaction($var);
     }
@@ -48,8 +48,8 @@ sub load {
         '_scoring' => $self->{'_scoring'},
         '_capture' => $self->{'capture'}
     );
-    print "done\n";
-    print "load: END\n";
+    # print "done\n";
+    # print "load: END\n";
 }
 
 # format a number
@@ -102,7 +102,7 @@ sub parse_string {
 # is maximum achieved score).  Later methods will add to it.
 sub pre_process {
     my ($self) = @_;
-    print "get_data:BEGIN\n";
+    # print "get_data:BEGIN\n";
     $self->SUPER::pre_process();
     # put this in $self instead
     # $o = {};
@@ -276,28 +276,41 @@ sub analyze {
     $marks = $self->{'marks'};
     @totals = map {$_->{'mark'}} @$marks;
     $total_stats = Statistics::Descriptive::Full->new();
+    $self->{'_debug.total_stats'} = $total_stats;
+    $self->{'_debug.totals'} = \@totals;
     $total_stats->add_data(@totals);
     $summary = $self->{'summary'};
     $self->compute_summary_statistics($total_stats,$summary);
 
     # analyze each question
-    for my $question (@{$self->{'questions'}}) {
+    $question_stats = Statistics::Descriptive::Full->new();
+    for my $question (@{$self->{'questions'}}) {        
         $title = $question->{'title'};
+        # print "DEBUG: Analyzing question: ", $title, "\n";
         $number = $question->{'question'};
         @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
-        $question_stats = Statistics::Descriptive::Full->new();
+        $self->{'_debug.' . $title . '.scores'} = \@question_scores;
+        # print "DEBUG: question_scores: ", join(",",@question_scores), "\n";
+        $question_stats->clear();
         $question_stats->add_data(@question_scores);
-        $self->compute_summary_statistics($question_stats,$question);        
+        # Compute correlation of this item with the total.
+        my ($b, $a, $r, $rms) = $question_stats->least_squares_fit(@totals);
+        $question->{'discrimination'} = $r;
+        $question->{'discrimination_class'} = $self->classify_discrimination($question);
+        # FIXME: DRY this up.  The routine below alters the data in $question_stats, though.
+        # $self->compute_summary_statistics($question_stats,$question);        
+        $question->{'mean'} = $question_stats->mean();
+        $question->{'standard_deviation'} = $question_stats->standard_deviation();
+        $question->{'min'} = $question_stats->min();
+        $question->{'max'} = $question_stats->max();
+        $question->{'count'} = $question_stats->count();
         $question->{'ceiling'} = $scoring->question_maxmax($number);
        	if ($question->{'ceiling'} != 0) {
             $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
             $question->{'difficulty_class'} = $self->classify_difficulty($question);
-	      }
+	    }
         $question->{'type_class'} = $self->classify_type($question);
-        # Compute correlation of this item with the total.
-        my ($b, $a, $r, $rms) = $total_stats->least_squares_fit(@question_scores);
-        $question->{'discrimination'} = $r;
-        $question->{'discrimination_class'} = $self->classify_discrimination($question);
+
 
         # create the histogram
         # We do this by sorting the reponses by the answers and collecting the total scores.
@@ -364,6 +377,19 @@ sub classify_difficulty {
     }
 }
 
+# compute correlation between two Statistics::Descriptive variables 
+# just to test;
+sub correlation {
+    my ($self,$x_stats,$y_stats) = @_;
+    my @x = $x_stats->get_data();
+    my @y = $y_stats->get_data();
+    my @xy = map {$x[$_] * $y[$_]} (0 .. $#x);
+    $xy_stats = Statistics::Descriptive::Full->new();
+    $xy_stats->add_data(@xy);
+    return ($xy_stats->mean() - ($x_stats->mean())*($y_stats->mean())) /
+        ($x_stats->standard_deviation()*$y_stats->standard_deviation())
+}
+
 
 # classify the discrimination of an item 
 #
@@ -423,6 +449,7 @@ sub question_is_open {
 #     $analyzer (Statistics::Descriptive): object that computes the stats
 #     $dest: destination for those statistics
 #
+# FIXME: seems to alter the data.
 # Possible improvements: return value, select stats...
 sub compute_summary_statistics {
     my ($self,$analyzer,$dest) = @_;
@@ -439,7 +466,7 @@ sub export {
     # absentees somewhere, but there's no need to add them to the analysis.
     # So we'll just reset it to zero.
     $self->{'noms.useall'} = 0;
-    print "export: BEGIN\n";
+    # print "export: BEGIN\n";
 
     # open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
 
