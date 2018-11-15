@@ -54,6 +54,11 @@ my $builder = $class->new(
         'Pod::POM::View::Restructured' => 0,  # required for `librst` action
         'Module::Build' => 0.06,  # need subclass() method
     },
+    test_requires      => {
+        'perl' => '!= 5.6.0, != 5.6.1, != 5.6.2', # Text::CSV::header does not work in perl-5.6.x (says POD)
+        'Text::CSV' => 0,
+        'Data::Dumper' => 0,
+    },
     add_to_cleanup     => ['_build/', 'blib/', 'MYMETA.*', 'AMC-ItemAnalysis-*'],
     create_makefile_pl => 'small',
     create_packlist    => 0,
