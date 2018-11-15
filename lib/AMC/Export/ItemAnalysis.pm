@@ -28,6 +28,7 @@ sub new {
     $self->{'out.entoure'}="\"";
     $self->{'out.ticked'}="";
     $self->{'out.columns'}='student.copy,student.key,student.name';
+    $self->{'noms.useall'}=0;
     bless ($self, $class);
     return $self;
 }
@@ -72,6 +73,11 @@ sub parse_string {
 
 
 # Import exam, question, and submission data into $self.
+#
+# This method should be considered internal.  Any external method that needs 
+# pre-processing should call this method.
+#
+# FIXME: prevent this method from being called more than once.
 # 
 # $self->{'marks'} is populated in AMC::Export::pre_process().  It is an arrayref,
 # with one item for each student.  For each $i, 
@@ -278,7 +284,7 @@ sub weight_student_scoring_base {
 #           (I think this can be found in student_scoring_base)
 sub analyze {
     my ($self) = @_;
-
+    $self->pre_process();
     # analyze the total     
     $marks = $self->{'marks'};
     @totals = map {$_->{'mark'}} @$marks;
@@ -475,7 +481,6 @@ sub export {
 
     # open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
 
-    $self->pre_process();
     $self->analyze();
     
     my %suffix_to_function = ('.yaml' => 'yaml', '.tex' => 'latex', '.pdf' => 'pdf');
@@ -509,22 +514,74 @@ sub export_latex {
     # We use single quote here so we don't have to escape all the backslashes.
     print $fh  q(
 \documentclass{article}
+\title{Item Analysis}
 \usepackage{helvet}
 \renewcommand{\familydefault}{\sfdefault}
 \usepackage[letterpaper,margin=0.5in]{geometry}
 \usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
 \tikzset{
     bar/.style={xscale=2,yscale=0.25,draw=black,fill=gray},
     correct/.style={fill=green!50!black},
-    incorrect/.style={fill=red!50!white}
+    incorrect/.style={fill=red!50!white},
 }
-\usepackage{pgfplots}
+\pgfplotsset{
+    main scatterplot/.style={
+        width=0.8\textwidth,
+        xlabel=Difficulty,
+        ylabel=Discrimination,
+        xmin=0,xmax=100,
+        ymin=0,ymax=1,
+        xtick={50,85},
+        ytick={0.1,0.3},
+        xticklabel=\empty,
+        yticklabel=\empty,
+        tick style={grid=major},
+        clip=false,
+        every axis plot/.append style={only marks,nodes near coords,point meta=\thisrow{item}},
+        /tikz/x interval/.style={font=\small},
+        /tikz/y interval/.style={font=\small,rotate=90,anchor=south},
+        after end axis/.code={
+            \node[x interval] at (xticklabel cs:0.5) {Moderate};
+            \node[x interval] at (xticklabel cs:0.9225) {Easy};
+            \node[x interval] at (xticklabel cs:0.07079) {Hard};
+            \node[y interval] at (yticklabel* cs:0.05) {Poor};
+            \node[y interval] at (yticklabel* cs:0.2) {Fair};
+            \node[y interval] at (yticklabel* cs:0.65) {Good};
+        }        
+    }
+}
 \usepackage{longtable}
 \usepackage{siunitx}
 \newlength{\itemrowsep}
 \setlength{\itemrowsep}{2ex}
 
 \begin{document}
+\maketitle
+
+\section{Item metadata}
+);
+
+    # print a problem metadata table
+    print $fh q(\begin{tabular}{rrc}), "\n";
+    print $fh q(\hline), "\n";
+    print $fh q(\bfseries Item number & \bfseries Item name & \bfseries Item type), '\\\\', "\n";
+    print $fh q(\hline), "\n";
+    for my $i (0 .. $#{$self->{'questions'}}) {
+        $q = $self->{'questions'}->[$i];
+        print $fh $i+1, " & ";
+        print $fh $q->{'title'}, " & ";
+        print $fh $q->{'type_class'};
+        print $fh '\\\\', "\n"; 
+    }
+    print $fh q(\end{tabular}), "\n";
+    
+    # print the main table
+    print $fh q(
+
+\section{Item statistics}
+
 \begin{longtable}{rSSrlSlSSSrSl}
 \hline
 \bfseries Item 
@@ -569,19 +626,33 @@ sub export_latex {
     }
     # end of item table
     print $fh q(\end{longtable}), "\n\n";
-    # print a problem metadata table
-    print $fh q(\begin{tabular}{rrc}), "\n";
-    print $fh q(\hline), "\n";
-    print $fh q(\bfseries Item number & \bfseries Item name & \bfseries Item type), '\\\\', "\n";
-    print $fh q(\hline), "\n";
+
+    # print the scatterplot
+    print $fh q(
+\section{Scatterplot}
+
+\begin{center}
+\begin{tikzpicture}
+    \begin{semilogxaxis}[main scatterplot]
+        \addplot table [x=diff,y=disc] {  
+);
+    print $fh "item mean sd diff diffc disc discc\n";
     for my $i (0 .. $#{$self->{'questions'}}) {
         $q = $self->{'questions'}->[$i];
-        print $fh $i+1, " & ";
-        print $fh $q->{'title'}, " & ";
-        print $fh $q->{'type_class'};
-        print $fh '\\\\', "\n"; 
+        print $fh  $i+1, " "; # was $q->{'title'} but that's too long
+        print $fh  sprintf ("%.2f", $q->{'mean'}), " ";
+        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " ";
+        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " ";
+        print $fh  $q->{'difficulty_class'} , " "; 
+        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " ";
+        print $fh  $q->{'discrimination_class'} , "\n";
     }
-    print $fh q(\end{tabular}), "\n";
+    print $fh q(
+        };
+    \end{semilogxaxis}
+\end{tikzpicture}
+\end{center}        
+    );
     print $fh q(\end{document}), "\n";
     close $fh;
 }
