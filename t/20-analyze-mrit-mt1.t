@@ -61,19 +61,23 @@ my $ex = AMC::Export::ItemAnalysis->new();
 $ex->set_options("fich","datadir"=>$data_dir,"noms"=>$fich_noms);
 $ex->pre_process();
 $ex->analyze();
+
 for my $qname (@qnames) {
     my $qname_padded = sprintf("%${qname_max_length}s", $qname);
     my @questions = grep { $_->{'title'} eq $qname }  @{$ex->{'questions'}};
     is (scalar(@questions),1,"$qname_padded - Exactly one question matches title");
     my $q = shift(@questions);
-    cmp_ok (
-        sprintf("%.6f",$q->{'mean'}), '==',
-        sprintf("%.6f",$stats->{$qname}->{'mean'}),
-        "$qname_padded - mean matches Excel calculation"
-    );
-    cmp_ok (
-        sprintf("%.6f",$q->{'discrimination'}), '==', 
-        sprintf("%.6f",$stats->{$qname}->{'rit'}),
-        "$qname_padded - RIT matches Excel calculation"
-    );
+    TODO: {
+        local $TODO = 'See https://github.com/leingang/AMC-ItemAnalysis/issues/11';
+        cmp_ok (
+            sprintf("%.6f",$q->{'mean'}), '==',
+            sprintf("%.6f",$stats->{$qname}->{'mean'}),
+            "$qname_padded - mean matches Excel calculation"
+        );
+        cmp_ok (
+            sprintf("%.6f",$q->{'discrimination'}), '==', 
+            sprintf("%.6f",$stats->{$qname}->{'rit'}),
+            "$qname_padded - RIT matches Excel calculation"
+        );
+    }
 }
