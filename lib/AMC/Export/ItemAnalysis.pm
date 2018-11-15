@@ -6,6 +6,7 @@ use AMC::Export;
 use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
 use File::Basename;
+use List::Util "sum";
 use YAML::Tiny;
 use Statistics::Descriptive;
 
@@ -367,6 +368,27 @@ sub analyze {
             $histogram->{$an}->{'weight'} = $weight_by_response_stats->mean;
         }        
     }
+    $self->{'summary'}->{'alpha'} = $self->alpha();
+}
+
+
+# compute Cronbach's alpha for the entire exam.
+#
+# Uses the formula from L<https://en.wikipedia.org/wiki/Cronbach%27s_alpha>
+# 
+# implementation is not the most efficient, but I had trouble getting others
+# to work.
+sub alpha {
+    my $self = shift;
+    my $K = scalar @{$self->{'questions'}};
+    return undef if ($K == 0); # no reliability for a test with no items!
+    return 1 if ($K == 1); # if there is only one item it is totally reliable!
+    my $total_variance = $self->{'summary'}->{'standard_deviation'} * $self->{'summary'}->{'standard_deviation'}; 
+    return undef if ($total_variance == 0); # if all scores are the same 
+    my @stdevs = map { $_->{'standard_deviation'} } @{$self->{'questions'}}; 
+    my @variances = map { $_ * $_ } @stdevs;
+    my $sum_of_variances = sum @variances;
+    return $K/($K-1)*(1 - $sum_of_variances/$total_variance);
 }
 
 # classify the difficulty of an item 
@@ -653,6 +675,12 @@ sub export_latex {
 \end{tikzpicture}
 \end{center}        
     );
+    # print summary statistics especially alpha
+    print $fh q(
+\section{Reliability}
+
+);
+    print $fh "Cronbach's \$\\alpha\$: ", sprintf("%.2f",$self->{'summary'}->{'alpha'}), "\n";
     print $fh q(\end{document}), "\n";
     close $fh;
 }

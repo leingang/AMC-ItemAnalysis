@@ -58,6 +58,10 @@ my $builder = $class->new(
         'perl' => '!= 5.6.0, != 5.6.1, != 5.6.2', # Text::CSV::header does not work in perl-5.6.x (says POD)
         'Text::CSV' => 0,
         'Data::Dumper' => 0,
+        'List::Util' => 0 # Needs max
+    },
+    requires => {
+        'List::Util' => 0 # Needs sum
     },
     add_to_cleanup     => ['_build/', 'blib/', 'MYMETA.*', 'AMC-ItemAnalysis-*'],
     create_makefile_pl => 'small',
