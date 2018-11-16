@@ -1,8 +1,27 @@
+#
+# Copyright (C) 2018 Matthew Leingang <leingang@nyu.edu>
+#
+# This file is part of AMC-ItemAnalysis
+#
+# AMC-ItemAnalysis is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by the
+# Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.
+#
+# AMC-ItemAnalysis is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
+    
 use 5.008;
 use strict;
 use warnings;
 
 use Module::Build;
+use Software::License;
 
 
 my $class = Module::Build->subclass(code => q(
@@ -45,14 +64,15 @@ my $class = Module::Build->subclass(code => q(
 my $prefix = $ENV{HOME} . "/.AMC.d/plugins/ItemAnalysis";
 my $builder = $class->new(
     module_name         => 'AMC::ItemAnalysis',
-    license             => 'artistic_2',
+    license             => 'GPL_3',
     dist_author         => q(Matthew Leingang <leingang@nyu.edu>),
     dist_version_from   => 'lib/AMC/ItemAnalysis.pm',
     release_status      => 'unstable',
     configure_requires => {
         'Pod::POM' => 0,
         'Pod::POM::View::Restructured' => 0,  # required for `librst` action
-        'Module::Build' => 0.06,  # need subclass() method
+        # need subclass() method and license declaration by Software::License subclass
+        'Module::Build' => 0.36_14,  
     },
     test_requires      => {
         'perl' => '!= 5.6.0, != 5.6.1, != 5.6.2', # Text::CSV::header does not work in perl-5.6.x (says POD)
