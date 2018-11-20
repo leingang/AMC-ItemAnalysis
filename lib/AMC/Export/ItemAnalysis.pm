@@ -210,7 +210,7 @@ sub pre_process {
 # add weights to the student scoring base
 # the C<student_scoring_base> useful data to compute questions scores for a
 # particular student (identified by $student and $copy), as a reference to a hash
-# grouping questions and answers. For exemple :
+# grouping questions and answers. For example:
 #
 # 'main_strategy'=>"",
 # 'questions'=>
@@ -261,7 +261,20 @@ sub weight_student_scoring_base {
             # and *not* ticking boxes could lead to points.
             # So we compute the weight of each by flipping it and comparing
             # to the original.
-            # NOTE: This may not work in NOTA answers. 
+            #
+            # NOTE: this might give unexpected results.  For instance, if the
+            # student ticks one correct answer and leaves the rest blank, flipping
+            # the ticked answer leaves no box ticked.  This results in an empty
+            # response and score of zero.  So the weight of a single answer could
+            # be quite high, rather than just the total question value divided by 
+            # the number of answers.
+            #
+            # Nevertheless, this is probably the best way to assign a weight to a
+            # single student's single answer to a single question.  AMC does not
+            # assume that every student has the same scoring base (not even modulo
+            # permutations of answers).
+            #
+            # See <https://github.com/leingang/AMC-ItemAnalysis/issues/2>
             for my $i (0 .. $#{$q->{'answers'}}) { 
                 # for my $j (0 .. $#{$q->{'answers'}}) {
                 #     $orig_ticked = $q->{'answers'}->[$j]->{'ticked'};
@@ -366,13 +379,10 @@ sub analyze {
                 if ($answer->{'ticked'}) {
                     push @{$total_by_response->{$an}}, $marks->[$i]->{'mark'};
                 }
-                # TODO: Figure out the answer's *weight*
-                # This comes from the strategy, but it's coded.
-                # perhaps some code in AMC::DataModule::scoring takes care of that?
             }
         }
         $total_by_response_stats = Statistics::Descriptive::Sparse->new;
-        $weight_by_response_stats = Statistics::Descriptive::Sparse->new;
+        $weight_by_response_stats = Statistics::Descriptive::Full->new;
         for my $an (keys %{$histogram}) {
             $total_by_response_stats->clear;
             $total_by_response_stats->add_data(@{$total_by_response->{$an}});
@@ -382,7 +392,13 @@ sub analyze {
                 $total_by_response_stats->count / $self->{'summary'}->{'count'};
             $weight_by_response_stats->clear;
             $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
-            $histogram->{$an}->{'weight'} = $weight_by_response_stats->mean;
+            # You would think that $weight_by_response->{$an} would be a constant
+            # array, but see the note above referring to Issue #2
+            # <https://github.com/leingang/AMC-ItemAnalysis/issues/2>
+            # We use the median to get the most expected answer for the answer's 
+            # weight (independent of student).  Mode might also be an option,
+            # but I don't know of a test where it would succeed and median wouldn't.            
+            $histogram->{$an}->{'weight'} = $weight_by_response_stats->median;
         }        
     }
     $self->{'summary'}->{'alpha'} = $self->alpha();
