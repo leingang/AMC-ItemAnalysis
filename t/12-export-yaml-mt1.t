@@ -21,7 +21,7 @@ use strict;
 use warnings;
 use Test::More;
 
-use AMC::Export::ItemAnalysis;
+use AMC::Export::ItemAnalysis_YAML;
 
 my $whoami = scalar getpwuid($<);
 if ($whoami eq 'matthew') {
@@ -35,7 +35,7 @@ my $project_dir = "/Users/matthew/Box/MC-Projects/20191 Discrete Mathematics/mt1
 my $data_dir = $project_dir . "/data";
 my $fich_noms = "/Volumes/GoogleDrive/My Drive/Courses/MATH-UA 120 Discrete Mathematics/MATH-UA 120 Fall 2018/Students/2018-09-18/amc.csv";
 my $output_file = $project_dir . "/exports/mt1-item-analysis.yaml";
-my $ex = AMC::Export::ItemAnalysis->new();
+my $ex = AMC::Export::ItemAnalysis_YAML->new();
 $ex->set_options("fich",
         "datadir"=>$data_dir,
         "noms"=>$fich_noms,

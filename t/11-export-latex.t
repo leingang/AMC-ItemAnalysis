@@ -20,7 +20,7 @@ use strict;
 use warnings;
 use Test::More;
 
-use AMC::Export::ItemAnalysis;
+use AMC::Export::ItemAnalysis_LaTeX;
 
 my $whoami = scalar getpwuid($<);
 if ($whoami eq 'matthew') {
@@ -34,7 +34,7 @@ my $project_dir = "/Users/matthew/Box/MC-Projects/20191 Discrete Mathematics/q07
 my $data_dir = $project_dir . "/data";
 my $fich_noms = $project_dir . "/amc.csv";
 my $output_file = $project_dir . "/exports/q07-itemanalysis.tex";
-my $ex = AMC::Export::ItemAnalysis->new();
+my $ex = AMC::Export::ItemAnalysis_LaTeX->new();
 $ex->set_options("fich",
         "datadir"=>$data_dir,
         "noms"=>$fich_noms,

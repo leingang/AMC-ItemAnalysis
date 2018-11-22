@@ -128,6 +128,10 @@ sub pre_process {
     my ($self) = @_;
     # print "get_data:BEGIN\n";
     $self->SUPER::pre_process();
+    # this setting comes from the GUI.  We may want to report the number of
+    # absentees somewhere, but there's no need to add them to the analysis.
+    # So we'll just reset it to zero.
+    $self->{'noms.useall'} = 0;
     # put this in $self instead
     # $o = {};
     # $o->{'items'} = []; # replace with $self->{'questions'}
@@ -524,29 +528,14 @@ sub compute_summary_statistics {
     }
 }
 
-
+# export to file
+#
+# Since there is no AMC::Export::register::ItemAnalysis module, this will never
+# get called by the GUI.  But in case you want a dump from Data::Dumper of the
+# data in a file, here it is.
 sub export {    
     my ($self,$fichier)=@_;
-    my $sep=$self->{'out.separateur'};
-    # this setting comes from the GUI.  We may want to report the number of
-    # absentees somewhere, but there's no need to add them to the analysis.
-    # So we'll just reset it to zero.
-    $self->{'noms.useall'} = 0;
-    # print "export: BEGIN\n";
-
-    # open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
-
     $self->analyze();
-    
-    my %suffix_to_function = ('.yaml' => 'yaml', '.tex' => 'latex', '.pdf' => 'pdf');
-    my @suffixes = keys %suffix_to_function;
-    my ($filename, $dirs, $suffix) = fileparse($fichier,@suffixes);
-    my $export_function = 'export_' . $suffix_to_function{$suffix};
-    $self->$export_function($fichier);
-}
-
-sub export_yaml {
-    my ($self,$fichier)=@_;
     my $data = {
         'metadata' => $self->{'metadata'},
         'summary' => $self->{'summary'},
@@ -554,168 +543,9 @@ sub export_yaml {
         'submissions' => $self->{'submissions'},
         'totals' => $self->{'marks'}
     };
-    my $yaml = YAML::Tiny->new($data);
-    $yaml->write($fichier);
-}
-
-# export latex file
-# 
-# Decided against using a templating engine since we are only writing a single file.
-# I may regret that later.
-sub export_latex {
-    my ($self,$fichier) = @_;
-    # preamble to table first row
-    open(my $fh, '>', $fichier) or die "Could not open file '$fichier' $!";
-    # We use single quote here so we don't have to escape all the backslashes.
-    print $fh  q(
-\documentclass{article}
-\title{Item Analysis}
-\usepackage{helvet}
-\renewcommand{\familydefault}{\sfdefault}
-\usepackage[letterpaper,margin=0.5in]{geometry}
-\usepackage{tikz}
-\usepackage{pgfplots}
-\pgfplotsset{compat=1.16}
-\tikzset{
-    bar/.style={xscale=2,yscale=0.25,draw=black,fill=gray},
-    correct/.style={fill=green!50!black},
-    incorrect/.style={fill=red!50!white},
-}
-\pgfplotsset{
-    main scatterplot/.style={
-        width=0.8\textwidth,
-        xlabel=Difficulty,
-        ylabel=Discrimination,
-        xmin=0,xmax=100,
-        ymin=0,ymax=1,
-        xtick={50,85},
-        ytick={0.1,0.3},
-        xticklabel=\empty,
-        yticklabel=\empty,
-        tick style={grid=major},
-        clip=false,
-        every axis plot/.append style={only marks,nodes near coords,point meta=\thisrow{item}},
-        /tikz/x interval/.style={font=\small},
-        /tikz/y interval/.style={font=\small,rotate=90,anchor=south},
-        after end axis/.code={
-            \node[x interval] at (xticklabel cs:0.5) {Moderate};
-            \node[x interval] at (xticklabel cs:0.9225) {Easy};
-            \node[x interval] at (xticklabel cs:0.07079) {Hard};
-            \node[y interval] at (yticklabel* cs:0.05) {Poor};
-            \node[y interval] at (yticklabel* cs:0.2) {Fair};
-            \node[y interval] at (yticklabel* cs:0.65) {Good};
-        }        
-    }
-}
-\usepackage{longtable}
-\usepackage{siunitx}
-\newlength{\itemrowsep}
-\setlength{\itemrowsep}{2ex}
-
-\begin{document}
-\maketitle
-
-\section{Item metadata}
-);
-
-    # print a problem metadata table
-    print $fh q(\begin{tabular}{rrc}), "\n";
-    print $fh q(\hline), "\n";
-    print $fh q(\bfseries Item number & \bfseries Item name & \bfseries Item type), '\\\\', "\n";
-    print $fh q(\hline), "\n";
-    for my $i (0 .. $#{$self->{'questions'}}) {
-        $q = $self->{'questions'}->[$i];
-        print $fh $i+1, " & ";
-        print $fh $q->{'title'}, " & ";
-        print $fh $q->{'type_class'};
-        print $fh '\\\\', "\n"; 
-    }
-    print $fh q(\end{tabular}), "\n";
-    
-    # print the main table
-    print $fh q(
-
-\section{Item statistics}
-
-\begin{longtable}{rSSrlSlSSSrSl}
-\hline
-\bfseries Item 
-& \bfseries Mean 
-& \bfseries StDev 
-& \multicolumn{2}{c}{\bfseries Difficulty}
-& \multicolumn{2}{c}{\bfseries Discrimination}
-& \bfseries ans 
-& \bfseries Weight 
-& \bfseries Means 
-& \multicolumn{2}{c}{\bfseries Frequencies}
-& \bfseries Distribution \\\\
-\hline\endhead
-);
-    # print stats for each item:
-
-    for my $i (0 .. $#{$self->{'questions'}}) {
-        $q = $self->{'questions'}->[$i];
-        print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
-        print $fh  sprintf ("%.2f", $q->{'mean'}), " & ";
-        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " & ";
-        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " & ";
-        print $fh  $q->{'difficulty_class'} , " & "; 
-        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
-        print $fh  $q->{'discrimination_class'} , " & "; 
-        my $row = 0;
-        @answers = sort keys (%{$q->{'histogram'}});
-        for my $k (@answers) {
-            $a = $q->{'histogram'}->{$k};
-            if ($row++) {
-                print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
-            }
-            print $fh $k, " & ";
-            print $fh sprintf("%.2f", $a->{'weight'}), " & ";
-            print $fh sprintf("%.2f", $a->{'mean'}), " & ";
-            print $fh $a->{'count'}, " & ";
-            print $fh sprintf("\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100), " & ";
-            $bar_key = $a->{'correct'} ? "correct" : "incorrect";
-            print $fh sprintf("\\tikz{\\draw[bar,$bar_key] (0,0) rectangle (%.2f,1);}", $a->{'frequency'});
-        }
-        print $fh '\\\\[\itemsep]', "\n";
-    }
-    # end of item table
-    print $fh q(\end{longtable}), "\n\n";
-
-    # print the scatterplot
-    print $fh q(
-\section{Scatterplot}
-
-\begin{center}
-\begin{tikzpicture}
-    \begin{semilogxaxis}[main scatterplot]
-        \addplot table [x=diff,y=disc] {  
-);
-    print $fh "item mean sd diff diffc disc discc\n";
-    for my $i (0 .. $#{$self->{'questions'}}) {
-        $q = $self->{'questions'}->[$i];
-        print $fh  $i+1, " "; # was $q->{'title'} but that's too long
-        print $fh  sprintf ("%.2f", $q->{'mean'}), " ";
-        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " ";
-        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " ";
-        print $fh  $q->{'difficulty_class'} , " "; 
-        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " ";
-        print $fh  $q->{'discrimination_class'} , "\n";
-    }
-    print $fh q(
-        };
-    \end{semilogxaxis}
-\end{tikzpicture}
-\end{center}        
-    );
-    # print summary statistics especially alpha
-    print $fh q(
-\section{Reliability}
-
-);
-    print $fh "Cronbach's \$\\alpha\$: ", sprintf("%.2f",$self->{'summary'}->{'alpha'}), "\n";
-    print $fh q(\end{document}), "\n";
-    close $fh;
+    open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
+    print OUT Dumper($data);
+    close(OUT);
 }
 
 1;

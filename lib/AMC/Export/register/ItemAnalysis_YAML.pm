@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License along
 # with AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
 
-package AMC::Export::register::ItemAnalysis;
+package AMC::Export::register::ItemAnalysis_YAML;
 
 use AMC::Export::register;
 use AMC::Basic;
@@ -34,11 +34,11 @@ sub new {
 }
 
 sub name {
-  return('Item Analysis');
+  return('Item Analysis (YAML)');
 }
 
 sub extension {
-  return('-item-analysis.tex');
+  return('-item-analysis.yaml');
 }
 
 sub options_from_config {
