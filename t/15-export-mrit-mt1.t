@@ -38,7 +38,7 @@ use warnings;
 use Test::More;
 use Data::Dumper;
 use Text::CSV;
-use List::Util qw[min max];
+use List::Util q(max);
 
 use AMC::Export::ItemAnalysis;
 

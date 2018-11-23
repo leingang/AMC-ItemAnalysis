@@ -23,14 +23,13 @@ use AMC::Export;
 use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
 use File::Basename;
-use List::Util "sum";
-use YAML::Tiny;
+use List::Util q(sum);
 use Statistics::Descriptive;
 
 use Encode;
-use Storable 'dclone';
+use Storable q(dclone);
 
-@ISA=("AMC::Export");
+use parent q(AMC::Export);
 
 use Data::Dumper;# for debugging
 

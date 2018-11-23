@@ -18,9 +18,7 @@
 
 package AMC::Export::ItemAnalysis_YAML;
 
-# use AMC::Basic;
-# use AMC::Export;
-# use Encode;
+use YAML::Tiny;
 
 use parent q(AMC::Export::ItemAnalysis);
 

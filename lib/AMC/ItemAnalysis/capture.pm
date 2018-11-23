@@ -1,7 +1,7 @@
 # additional methods to this package
 package AMC::ItemAnalysis::capture;
 
-use parent "AMC::DataModule::capture";
+use parent q(AMC::DataModule::capture);
 use Data::Dumper;# for debugging
 
 # convert number to letter

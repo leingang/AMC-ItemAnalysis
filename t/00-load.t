@@ -30,11 +30,20 @@ use strict;
 use warnings;
 use Test::More;
 
-my @modules = qw(AMC::ItemAnalysis AMC::Export::ItemAnalysis AMC::Export::register::ItemAnalysis AMC::ItemAnalysis::capture);
-plan tests => $#modules+1;  
+BEGIN {
 
-foreach (@modules) {
-    use_ok( $_ );
+    my @modules = qw(AMC::ItemAnalysis 
+        AMC::Export::ItemAnalysis 
+        AMC::Export::ItemAnalysis_YAML
+        AMC::Export::ItemAnalysis_LaTeX
+        AMC::Export::register::ItemAnalysis_YAML
+        AMC::Export::register::ItemAnalysis_LaTeX
+        AMC::ItemAnalysis::capture);
+    plan tests => scalar @modules;  
+
+    foreach (@modules) {
+        use_ok( $_ );
+    }
 }
 
 diag( "Testing AMC::ItemAnalysis $AMC::ItemAnalysis::VERSION, Perl $], $^X" );
