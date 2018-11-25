@@ -19,11 +19,12 @@
 package AMC::Export::ItemAnalysis;
 
 use AMC::Basic;
+use AMC::CSLog;
 use AMC::Export;
 use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
 use File::Basename;
-use List::Util q(sum);
+use List::Util qw(sum first);
 use Statistics::Descriptive;
 
 use Encode;
@@ -405,6 +406,25 @@ sub analyze {
         }        
     }
     $self->{'summary'}->{'alpha'} = $self->alpha();
+    $self->add_labels();
+}
+
+# add answer labels to histogram
+sub add_labels {
+    my $self = shift;
+    $project_dir = dirname($self->{'fich.datadir'});
+    $cslog_file_name = $project_dir . "/amc-compiled.cs";
+    if ( -e $cslog_file_name) {
+        my $cslog_parser = AMC::CSLog->new();
+        my $labels = $cslog_parser->parse($cslog_file_name);
+        for (@$labels) {
+            my $question_name = $_->{'question_name'};
+            my $answer_number = $_->{'answer_number'};
+            my $answer_label  = $_->{'answer_label'};
+            $question = first {$_->{'title'} eq $question_name } @{$self->{'questions'}};
+            $question->{'histogram'}->{$answer_number}->{'label'} = $answer_label;
+        }
+    }
 }
 
 

@@ -104,7 +104,7 @@ sub export {
 
 \section{Item statistics}
 
-\begin{longtable}{rSSrlSlSSSrSl}
+\begin{longtable}{rSSrlSlcSSrSl}
 \hline
 \bfseries Item 
 & \bfseries Mean 
@@ -136,7 +136,8 @@ sub export {
             if ($row++) {
                 print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
             }
-            print $fh $k, " & ";
+            $label = (defined($a->{'label'}) ? $a->{'label'} : $k);
+            print $fh $label, " & ";
             print $fh sprintf("%.2f", $a->{'weight'}), " & ";
             print $fh sprintf("%.2f", $a->{'mean'}), " & ";
             print $fh $a->{'count'}, " & ";

@@ -76,16 +76,16 @@ my $ex = AMC::Export::ItemAnalysis->new();
 $ex->set_options("fich","datadir"=>$data_dir,"noms"=>$fich_noms);
 $ex->analyze();
 
-TODO : {
-    local $TODO = "still working on this feature";
-    for my $i (0 .. $#{$ex->{'questions'}}) {
-        my $question = $ex->{'questions'}->[$i];
-        my $qname = $question->{'title'};
-        for my $answer_num (keys %{$question->{'histogram'}}) {
-            is ($question->{'histogram'}->{$answer_num}->{'label'},
-                $labels->{$qname}->{$answer_num},
-                sprintf("label matches (%s, answer %d)",$qname,$answer_num)
-            );
-        }
+for my $i (0 .. $#{$ex->{'questions'}}) {
+    my $question = $ex->{'questions'}->[$i];
+    # print "question: ", Dumper($question);
+    my $qname = $question->{'title'};
+    # print "labels for this question: ", Dumper ($labels->{$qname});
+    for my $answer_num (keys %{$question->{'histogram'}}) {
+        # print "answer_num: ", $answer_num;
+        is ($question->{'histogram'}->{$answer_num}->{'label'},
+            $labels->{$qname}->{$answer_num},
+            sprintf("label matches (%s, answer %d)",$qname,$answer_num)
+        );
     }
 }
