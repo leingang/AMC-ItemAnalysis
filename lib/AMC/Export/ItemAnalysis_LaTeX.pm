@@ -32,6 +32,10 @@ sub export {
     my ($self,$fichier)=@_;
     $self->analyze();
     open(my $fh, '>', $fichier) or die "Could not open file '$fichier' $!";
+    # Sort by question ID number.  I guess this is pretty close to the
+    # order they appear in the source file.
+    @questions_sorted = sort { $a->{'question'} <=> $b->{'question'} } @{$self->{'questions'}};
+    $self->{'questions'} = \@questions_sorted;
     # preamble to table first row
     # We use single quote here so we don't have to escape all the backslashes.
     print $fh  q(
@@ -119,7 +123,6 @@ sub export {
 \hline\endhead
 );
     # print stats for each item:
-
     for my $i (0 .. $#{$self->{'questions'}}) {
         $q = $self->{'questions'}->[$i];
         print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
