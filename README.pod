@@ -1,10 +1,11 @@
-AMC-ItemAnalysis
+=head1 AMC-ItemAnalysis
 
-This module is an [auto-multiple-choice][[1]] (AMC) export plugin.  It performs
-an [item response theory][[2]] analysis on the exam.  It exports a structured data
-file in YAML format, as well as a LaTeX file than can be compiled to PDF.
+This module is a set of L<auto-multiple-choice|https://www.auto-multiple-choice.net/> 
+(AMC) export plugins.  Each performs an L<item response theory|https://en.wikipedia.org/wiki/Item_response_theory>
+analysis on the exam.  There is a plugin to export  a structured data file in YAML format, 
+and another to export a LaTeX file than can be compiled to PDF.
 
-INSTALLATION
+=head1 INSTALLATION
 
 To install this module from a distribution via the AMC GUI, select the hamburger
 menu, then "Plugins", then "Install".  Select the compressed tarball using the
@@ -24,41 +25,43 @@ To install this module from source, run the following commands:
 	./Build install
 
 The necessary perl modules will be installed in
-`$ENV{HOME}/.AMC.d/plugins/ItemAnalysis/perl`, and documentation in
-`$ENV{HOME}/.AMC.d/plugins/ItemAnalysis/doc`.
+F<$ENV{HOME}/.AMC.d/plugins/ItemAnalysis/perl>, and documentation in
+F<$ENV{HOME}/.AMC.d/plugins/ItemAnalysis/doc>.
 
-USAGE
+=head1 USAGE
 
-From the AMC GUI, go to the Reports tab and select "Item Analysis" from the
-dropdown menu.  Click "Export" and after completion, open the exports directory.
-A file called `foo-item-analysis.tex` (where `foo` is the "short name" of your
-AMC project) will be there.
+From the AMC GUI, go to the Reports tab and select one of the "Item Analysis"
+options from the dropdown menu.  Click "Export" and after completion, open the
+F<exports> directory.  A file called F<foo-item-analysis.ext> will be there,
+where F<foo> is the "short name" of your AMC project, and F<ext> depends on 
+which format you have chosen.
 
 From the command line, you can execute
 
-	auto-multiple-choice export --module ItemAnalysis \
+	auto-multiple-choice export --module ItemAnalysis_ext \
 	    --data project-data-dir \
         --fich-noms students-list.csv \
         --o output-file
 
-SUPPORT AND DOCUMENTATION
+Here C<ext> is one of C<LaTeX> or C<YAML>, depending on your desired output
+format.
+
+=head1 SUPPORT AND DOCUMENTATION
 
 After installing, you can find documentation for this module with the
 perldoc command.
 
     perldoc AMC::ItemAnalysis
 
-The module also supports the Sphinx docmentation system (requires Python; see
-reqirements-doc.txt). The `librst` build action will create reST files from the 
-module's POD documentation, and then the Sphinx documentation can be built.
+The module also supports the L<Sphinx|http://sphinx-doc.org> docmentation 
+system (requires Python; see F<reqirements-doc.txt>). The C<librst> build
+action will create reST files from the module's POD documentation, and then
+the Sphinx documentation can be built.
 
     ./Build librst
     cd doc/ && make html
-    
-L<http://sphinx-doc.org>    
-    
 
-LICENSE AND COPYRIGHT
+=head1 LICENSE AND COPYRIGHT
 
 Copyright (C) 2018 Matthew Leingang
 
@@ -72,7 +75,4 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
-
-[[1]]: https://www.auto-multiple-choice.net/ "Auto-multiple-choice home page"
-[[2]]: https://en.wikipedia.org/wiki/Item_response_theory
+AMC-ItemAnalysis.  If not, see L<https://www.gnu.org/licenses/>.
