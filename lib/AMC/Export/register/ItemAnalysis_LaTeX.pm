@@ -116,4 +116,10 @@ sub weight {
   return(.9);
 }
 
+# hide the "standard export options" (student sort order dropdown, 
+# include absentees checkbox) in the Reports tab
+sub hide {
+    return('standard_export_options'=>1);
+}
+
 1;
