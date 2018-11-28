@@ -38,9 +38,14 @@ sub export {
     $self->{'questions'} = \@questions_sorted;
     # preamble to table first row
     # We use single quote here so we don't have to escape all the backslashes.
-    print $fh  q(
+    $exam_name = $self->{'metadata'}->{'title'};
+    $doc_title = ($exam_name ? $exam_name . ' ' : '' ) . 'Item Analysis';
+    print $fh  sprintf q(
 \documentclass{article}
-\title{Item Analysis}
+);
+    print $fh "\\title{${doc_title}}\n";
+    print $fh q(
+\author{Prepared by auto-multiple-choice}
 \usepackage{helvet}
 \renewcommand{\familydefault}{\sfdefault}
 \usepackage[letterpaper,margin=0.5in]{geometry}
