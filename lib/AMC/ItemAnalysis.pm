@@ -48,7 +48,7 @@ __END__
 
 =head1 NAME
 
-AMC::ItemAnalysis - A basic Perl library.
+AMC::ItemAnalysis - A suite of auto-multiple-choice plugins for doing item analysis.
 
 =head1 VERSION
 
@@ -57,18 +57,26 @@ Version 0.004000_001
 
 =head1 SYNOPSIS
 
-This is a template for a Perl library project.
+From the AMC GUI, go to the Reports tab and select one of the "Item Analysis"
+options from the dropdown menu.  Click "Export" and after completion, open the
+F<exports> directory.  A file called F<foo-item-analysis.ext> will be there,
+where F<foo> is the "short name" of your AMC project, and F<ext> depends on 
+which format you have chosen.
 
-    use AMC::ItemAnalysis;
+From the command line, you can execute
 
+	auto-multiple-choice export --module ItemAnalysis_ext \
+	    --data project-data-dir \
+        --fich-noms students-list.csv \
+        --o output-file
 
-=head1 EXPORT
-
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+Here C<ext> is one of C<LaTeX> or C<YAML>, depending on your desired output
+format.
 
 
 =head1 SUBROUTINES/METHODS
+
+At the moment, AMC::ItemAnalysis doesn't have any subroutines or methods.
 
 
 =head1 AUTHOR
@@ -78,17 +86,21 @@ Matthew Leingang, C<< <leingang@nyu.edu> >>
 
 =head1 SUPPORT
 
-You can find documentation for this module with the perldoc command.
+Look at the submodules.
 
-    perldoc AMC::ItemAnalysis
+
+=head1 SEE ALSO
+
+L<AMC::Export::ItemAnalysis>, L<AMC::Export::ItemAnalysis_LaTeX>, L<AMC::Export::ItemAnalysis_YAML>
 
 
 =head1 ACKNOWLEDGEMENTS
 
 
-=head1 LICENSE AND COPYRIGHT
+Many thanks to Alexis Bienvenüe who created AMC and helped me with developing this plugin.
 
-LICENSE AND COPYRIGHT
+
+=head1 LICENSE AND COPYRIGHT
 
 Copyright (C) 2018 Matthew Leingang
 
