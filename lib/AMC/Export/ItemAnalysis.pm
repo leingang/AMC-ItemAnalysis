@@ -16,6 +16,15 @@
 # You should have received a copy of the GNU General Public License along
 # with AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
 
+=pod
+
+=encoding utf8
+
+=head1 NAME
+
+AMC::Export::ItemAnalysis - Abstract class for exporting item analyses
+
+=cut 
 package AMC::Export::ItemAnalysis;
 
 use AMC::Basic;
@@ -34,6 +43,15 @@ use parent q(AMC::Export);
 
 use Data::Dumper;# for debugging
 
+=head1 METHODS
+
+=head2 new
+
+Create the object.  
+
+No arguments.  Returns a reference.
+
+=cut
 sub new {
     # print "new: BEGIN\n";
     my $class = shift;
@@ -50,6 +68,193 @@ sub new {
     bless ($self, $class);
     return $self;
 }
+
+
+=head2 analyze
+
+Do the item analysis.  
+
+No arguments.  No return—instead keys in the hashref are set.
+
+After C<< $obj->analyze() >>, C<$obj> contains this data:
+
+=over
+
+=item C<< $obj->{'questions'} >> is a reference to an array of hashrefs,
+one for each question in the exam.  Each question's hashref contains
+the following keys:
+
+=over
+
+=item C<question>: the question's numerical ID (from the database) for
+the question.
+
+=item C<mean>: the average score on that question
+
+=item C<max>: the maximum score B<achieved> by students on the question
+
+=item C<ceiling>: the maximum score B<possible> on the question
+
+=item C<min>: the minimum score achieved by students on the question
+
+=item C<discrimination>: the correlation (Pearson's I<r>) of
+the question score with the exam total.  This is a number between -1
+and 1.  The closer it is to 1, the closer the question is to “predicting”
+success on the entire exam.  
+
+=item C<discrimination_class>: natural language description of the the
+question's discrimination.  Current values are “Good“, “Fair”, or ”Poor”.
+
+=item C<difficulty>: the quotient of the mean by the ceiling.  More
+difficult items will have a difficulty closer to zero.
+
+=item C<difficulty_class>: natural language description of the the
+question's discrimination.  Current values are “Easy”, “Moderate”, or
+”Hard”.
+
+=item C<histogram>: a hashref of hashrefs keyed by the answer number
+(as a string).  For each key C<$a>, the following keys are set:
+
+=over
+
+=item C<label>: the label for the answer.  Normally this is a letter
+like 'A', 'B', 'C', etc.  This key helps with formatting the report.
+
+=item C<count>: the number of students selecting this answer
+
+=item C<frequency>: the portion of students selecting this answer.
+This is a number between 0 and 1.
+
+=item C<mean>: the mean of the total for the students who selected this
+answer
+
+=item C<weight>: the change in total score for this answer.  In a regular
+multiple choice question, this is probably the problem score for correct
+answers and zero for incorrect answers.  For multiple choice questions
+with multiple correct answers, this is probably the problem score divided
+by the number of answers.  See L</weight_student_scoring_base> below.
+
+=back
+
+B<TODO:> Replace the word I<histogram>: I just learned that's not what the
+word means.
+
+=back
+
+C<< $obj->{'summary'} >> is a reference to an hash of summary statistics,
+on the exam total:
+
+=over
+
+=item C<mean>
+
+=item C<standard_deviation>
+
+=item C<min>
+
+=item C<max>
+
+=item C<ceiling>
+
+=item C<count>
+
+=back
+
+=back
+
+=cut
+sub analyze {
+    my ($self) = @_;
+    $self->pre_process();
+    # analyze the total     
+    $marks = $self->{'marks'};
+    @totals = map {$_->{'mark'}} @$marks;
+    $total_stats = Statistics::Descriptive::Full->new();
+    $self->{'_debug.total_stats'} = $total_stats;
+    $self->{'_debug.totals'} = \@totals;
+    $total_stats->add_data(@totals);
+    $summary = $self->{'summary'};
+    $self->compute_summary_statistics($total_stats,$summary);
+
+    # analyze each question
+    $question_stats = Statistics::Descriptive::Full->new();
+    for my $question (@{$self->{'questions'}}) {        
+        $title = $question->{'title'};
+        $number = $question->{'question'};
+        @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
+        $self->{'_debug.' . $title . '.scores'} = \@question_scores;
+        # print "DEBUG: question_scores: ", join(",",@question_scores), "\n";
+        $question_stats->clear();
+        $question_stats->add_data(@question_scores);
+        # Compute correlation of this item with the total.
+        my ($b, $a, $r, $rms) = $question_stats->least_squares_fit(@totals);
+        $question->{'discrimination'} = $r;
+        $question->{'discrimination_class'} = $self->classify_discrimination($question);
+        # FIXME: DRY this up.  The routine below alters the data in $question_stats, though.
+        # $self->compute_summary_statistics($question_stats,$question);        
+        $question->{'mean'} = $question_stats->mean();
+        $question->{'standard_deviation'} = $question_stats->standard_deviation();
+        $question->{'min'} = $question_stats->min();
+        $question->{'max'} = $question_stats->max();
+        $question->{'count'} = $question_stats->count();
+       	if ($question->{'ceiling'} != 0) {
+            $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
+            $question->{'difficulty_class'} = $self->classify_difficulty($question);
+	    }
+        $question->{'type_class'} = $self->classify_type($question);
+
+
+        # create the histogram
+        # We do this by sorting the reponses by the answers and collecting the total scores.
+        # there might be a map / filter / accumulate way to do this,
+        # but remember that the scoring_base may depend on the question *and* the student.
+        $histogram = $question->{'histogram'} = {};
+        # the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
+        # Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
+        $total_by_response = {};   
+        $weight_by_response = {}; 
+        for my $i (0 .. $#{$self->{'submissions'}}) {
+            $submission = $self->{'submissions'}->[$i];    
+            $response = $submission->{$title};
+            $sb = $response->{'scoring_base'};
+            for my $answer (@{$sb->{'answers'}}) {
+                $an = $answer->{'answer'}; # answer number
+                unless (defined $histogram->{$an}) {
+                    $histogram->{$an} = {};
+                    $histogram->{$an}->{'correct'} = $answer->{'correct'};
+                    $total_by_response->{$an} = [];
+                    $weight_by_response->{$an} = [];
+                }
+                push @{$weight_by_response->{$an}}, $answer->{'weight'};
+                if ($answer->{'ticked'}) {
+                    push @{$total_by_response->{$an}}, $marks->[$i]->{'mark'};
+                }
+            }
+        }
+        $total_by_response_stats = Statistics::Descriptive::Sparse->new;
+        $weight_by_response_stats = Statistics::Descriptive::Full->new;
+        for my $an (keys %{$histogram}) {
+            $total_by_response_stats->clear;
+            $total_by_response_stats->add_data(@{$total_by_response->{$an}});
+            $histogram->{$an}->{'mean'} = $total_by_response_stats->mean;
+            $histogram->{$an}->{'count'} = $total_by_response_stats->count;
+            $histogram->{$an}->{'frequency'} =
+                $total_by_response_stats->count / $self->{'summary'}->{'count'};
+            $weight_by_response_stats->clear;
+            $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
+            # You would think that $weight_by_response->{$an} would be a constant
+            # array, but see the note above referring to Issue #2
+            # <https://github.com/leingang/AMC-ItemAnalysis/issues/2>
+            # We use the median to get the most expected answer for the answer's 
+            # weight (independent of student).  Mode might also be an option,
+            # but I don't know of a test where it would succeed and median wouldn't.            
+            $histogram->{$an}->{'weight'} = $weight_by_response_stats->median;
+        }        
+    }
+    $self->{'summary'}->{'alpha'} = $self->alpha();
+    $self->add_labels();
+}
+
 
 sub load {
     my ($self)=@_;
@@ -89,9 +294,15 @@ sub parse_string {
     return($s);
 }
 
+=head1 PRIVATE METHODS
 
-# Import exam, question, and submission data into $self.
-#
+These methods aren't intended for end users.
+
+=head2 pre_process
+
+Import exam, question, and submission data into $self.
+
+=cut
 # This method should be considered internal.  Any external method that needs 
 # pre-processing should call this method.
 #
@@ -211,28 +422,48 @@ sub pre_process {
 
 }
 
-# add weights to the student scoring base
-# the C<student_scoring_base> useful data to compute questions scores for a
-# particular student (identified by $student and $copy), as a reference to a hash
-# grouping questions and answers. For example:
-#
-# 'main_strategy'=>"",
-# 'questions'=>
-# { 1 =>{ 'question'=>1,
-#         'title' => 'questionID',
-#         'type'=>1,
-#         'indicative'=>0,
-#         'strategy'=>'',
-#         'answers'=>[ { 'question'=>1, 'answer'=>1,
-#                        'correct'=>1, 'ticked'=>0, 'strategy'=>"b=2" },
-#                      {'question'=>1, 'answer'=>2,
-#                        'correct'=>0, 'ticked'=>0, 'strategy'=>"" },
-#                    ],
-#       },
-#  ...
-# }
-# This subroutine adds to each answer the score that would be earned for 
-# *just that box* were it ticked
+=head2 weight_student_scoring_base 
+
+Add weights to the student scoring base.
+
+The C<student_scoring_base> contains useful data to compute questions scores for a
+particular student (identified by $student and $copy), as a reference to a hash
+grouping questions and answers. For example:
+
+    'main_strategy'=>"",
+    'questions'=>
+    { 1 =>{ 'question'=>1,
+            'title' => 'questionID',
+            'type'=>1,
+            'indicative'=>0,
+            'strategy'=>'',
+            'answers'=>[ { 'question'=>1, 'answer'=>1,
+                        'correct'=>1, 'ticked'=>0, 'strategy'=>"b=2" },
+                        {'question'=>1, 'answer'=>2,
+                        'correct'=>0, 'ticked'=>0, 'strategy'=>"" },
+                    ],
+        },
+    ...
+    }
+
+This subroutine adds to each answer the score that would be earned for 
+I<just that box> were it ticked.
+
+B<NOTE:> For multiple choice questions with multiple correct answer, 
+this might give unexpected results.  For instance, if the student ticks 
+one correct answer and leaves the rest blank, flipping the ticked answer
+leaves no box ticked.  This results in an empty response and score of zero.  
+So the weight of a single answer could be quite high, rather than just 
+the total question value divided by the number of answers.
+
+Nevertheless, this is probably the best way to assign a weight to a
+single student's single answer to a single question.  AMC does not
+assume that every student has the same scoring base (not even modulo
+permutations of answers).
+
+See L<Issue 2|https://github.com/leingang/AMC-ItemAnalysis/issues/2>
+
+=cut
 sub weight_student_scoring_base {
     my ($self, $student, $ssb) = @_;
     $scorer = $self->{'_score'};
@@ -265,20 +496,6 @@ sub weight_student_scoring_base {
             # and *not* ticking boxes could lead to points.
             # So we compute the weight of each by flipping it and comparing
             # to the original.
-            #
-            # NOTE: this might give unexpected results.  For instance, if the
-            # student ticks one correct answer and leaves the rest blank, flipping
-            # the ticked answer leaves no box ticked.  This results in an empty
-            # response and score of zero.  So the weight of a single answer could
-            # be quite high, rather than just the total question value divided by 
-            # the number of answers.
-            #
-            # Nevertheless, this is probably the best way to assign a weight to a
-            # single student's single answer to a single question.  AMC does not
-            # assume that every student has the same scoring base (not even modulo
-            # permutations of answers).
-            #
-            # See <https://github.com/leingang/AMC-ItemAnalysis/issues/2>
             for my $i (0 .. $#{$q->{'answers'}}) { 
                 # for my $j (0 .. $#{$q->{'answers'}}) {
                 #     $orig_ticked = $q->{'answers'}->[$j]->{'ticked'};
@@ -300,114 +517,7 @@ sub weight_student_scoring_base {
     }
 }
 
-# Do the analysis.  These keys/values should be set:
-# For each question in @{$self->{'questions'}},
-# - mean: average
-# - max: maximum score achieved
-# - ceiling: maximum score possible
-# - discrimination: correlation of item with total
-# - discrimination_class: English classification of discrimination
-# - difficulty: mean/ceiling
-# - difficulty_class: English classification of difficulty.
-# - histogram: a hashref keyed by the answer type
-# 
-# For each answer $a to question $i,
-# $self->{'questions'}->[$i]->{'histogram'}->{$a} has keys/values:
-# - count: number of students selecting this response
-# - mean: mean of total for those students who selected this response
-# - weight: score for students who selected this response
-#           (I think this can be found in student_scoring_base)
-sub analyze {
-    my ($self) = @_;
-    $self->pre_process();
-    # analyze the total     
-    $marks = $self->{'marks'};
-    @totals = map {$_->{'mark'}} @$marks;
-    $total_stats = Statistics::Descriptive::Full->new();
-    $self->{'_debug.total_stats'} = $total_stats;
-    $self->{'_debug.totals'} = \@totals;
-    $total_stats->add_data(@totals);
-    $summary = $self->{'summary'};
-    $self->compute_summary_statistics($total_stats,$summary);
 
-    # analyze each question
-    $question_stats = Statistics::Descriptive::Full->new();
-    for my $question (@{$self->{'questions'}}) {        
-        $title = $question->{'title'};
-        $number = $question->{'question'};
-        @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
-        $self->{'_debug.' . $title . '.scores'} = \@question_scores;
-        # print "DEBUG: question_scores: ", join(",",@question_scores), "\n";
-        $question_stats->clear();
-        $question_stats->add_data(@question_scores);
-        # Compute correlation of this item with the total.
-        my ($b, $a, $r, $rms) = $question_stats->least_squares_fit(@totals);
-        $question->{'discrimination'} = $r;
-        $question->{'discrimination_class'} = $self->classify_discrimination($question);
-        # FIXME: DRY this up.  The routine below alters the data in $question_stats, though.
-        # $self->compute_summary_statistics($question_stats,$question);        
-        $question->{'mean'} = $question_stats->mean();
-        $question->{'standard_deviation'} = $question_stats->standard_deviation();
-        $question->{'min'} = $question_stats->min();
-        $question->{'max'} = $question_stats->max();
-        $question->{'count'} = $question_stats->count();
-       	if ($question->{'ceiling'} != 0) {
-            $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
-            $question->{'difficulty_class'} = $self->classify_difficulty($question);
-	    }
-        $question->{'type_class'} = $self->classify_type($question);
-
-
-        # create the histogram
-        # We do this by sorting the reponses by the answers and collecting the total scores.
-        # there might be a map / filter / accumulate way to do this,
-        # but remember that the scoring_base may depend on the question *and* the student.
-        $histogram = $question->{'histogram'} = {};
-        # the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
-        # Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
-        $total_by_response = {};   
-        $weight_by_response = {}; 
-        for my $i (0 .. $#{$self->{'submissions'}}) {
-            $submission = $self->{'submissions'}->[$i];    
-            $response = $submission->{$title};
-            $sb = $response->{'scoring_base'};
-            for my $answer (@{$sb->{'answers'}}) {
-                $an = $answer->{'answer'}; # answer number
-                unless (defined $histogram->{$an}) {
-                    $histogram->{$an} = {};
-                    $histogram->{$an}->{'correct'} = $answer->{'correct'};
-                    $total_by_response->{$an} = [];
-                    $weight_by_response->{$an} = [];
-                }
-                push @{$weight_by_response->{$an}}, $answer->{'weight'};
-                if ($answer->{'ticked'}) {
-                    push @{$total_by_response->{$an}}, $marks->[$i]->{'mark'};
-                }
-            }
-        }
-        $total_by_response_stats = Statistics::Descriptive::Sparse->new;
-        $weight_by_response_stats = Statistics::Descriptive::Full->new;
-        for my $an (keys %{$histogram}) {
-            $total_by_response_stats->clear;
-            $total_by_response_stats->add_data(@{$total_by_response->{$an}});
-            $histogram->{$an}->{'mean'} = $total_by_response_stats->mean;
-            $histogram->{$an}->{'count'} = $total_by_response_stats->count;
-            $histogram->{$an}->{'frequency'} =
-                $total_by_response_stats->count / $self->{'summary'}->{'count'};
-            $weight_by_response_stats->clear;
-            $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
-            # You would think that $weight_by_response->{$an} would be a constant
-            # array, but see the note above referring to Issue #2
-            # <https://github.com/leingang/AMC-ItemAnalysis/issues/2>
-            # We use the median to get the most expected answer for the answer's 
-            # weight (independent of student).  Mode might also be an option,
-            # but I don't know of a test where it would succeed and median wouldn't.            
-            $histogram->{$an}->{'weight'} = $weight_by_response_stats->median;
-        }        
-    }
-    $self->{'summary'}->{'alpha'} = $self->alpha();
-    $self->add_labels();
-}
 
 # add answer labels to histogram
 sub add_labels {
