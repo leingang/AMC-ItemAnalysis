@@ -19,3 +19,4 @@ AMC-ItemAnalysis-*.tar.gz
 Makefile.PL
 doc/ItemAnalysis.rst
 doc/Tiny.rst
+doc/CSLog.rst
