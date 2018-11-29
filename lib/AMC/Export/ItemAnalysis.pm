@@ -141,24 +141,32 @@ word means.
 
 =back
 
-C<< $obj->{'summary'} >> is a reference to an hash of summary statistics,
+=item C<< $obj->{'summary'} >> is a reference to an hash of summary statistics,
 on the exam total:
 
 =over
 
-=item C<mean>
+=item C<mean>: The mean or average of the exam total
 
-=item C<standard_deviation>
+=item C<standard_deviation>: the standard deviation of the exam total.
+The higher the standard deviation, the more spread out the scores are
+around the mean.
 
-=item C<min>
+=item C<min>: the minimum score achieved
 
-=item C<max>
+=item C<max>: the maximum score achieved
 
-=item C<ceiling>
+=item C<ceiling>: the maximum score possible
 
-=item C<count>
+=item C<count>: the number of exams taken
 
 =back
+
+=item C<< $obj->{'submissions'} >> is a reference to an array of 
+hashrefs, one for each exam submitted.
+
+=item C<< $obj->{'metadata'} >> is a reference to a hash of metadata
+about the exam itself.
 
 =back
 
@@ -255,7 +263,41 @@ sub analyze {
     $self->add_labels();
 }
 
+=head2 export 
 
+Export to a file.  One parameter: the file name.  No return.
+
+This is more of a virtual method.  Since there is no 
+C<AMC::Export::register::ItemAnalysis> module, this will never
+get called by the GUI.  But in case you want a dump (from L<Data::Dumper>) 
+of the data in a file, here it is.
+
+=cut 
+sub export {    
+    my ($self,$fichier)=@_;
+    $self->analyze();
+    my $data = {
+        'metadata' => $self->{'metadata'},
+        'summary' => $self->{'summary'},
+        'items' => $self->{'questions'},
+        'submissions' => $self->{'submissions'},
+        'totals' => $self->{'marks'}
+    };
+    open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
+    print OUT Dumper($data);
+    close(OUT);
+}
+
+
+=head1 PRIVATE METHODS
+
+These methods aren't intended for end users.
+
+=head2 load
+
+Load database connection and set data submodules.
+
+=cut
 sub load {
     my ($self)=@_;
     # print "load: BEGIN", "\n";
@@ -276,65 +318,70 @@ sub load {
     # print "load: END\n";
 }
 
-# format a number
-sub parse_num {
-    my ($self,$n)= @_;
-    if($self->{'out.decimal'} ne '.') {
-	$n =~ s/\./$self->{'out.decimal'}/;
-    }
-    return($self->parse_string($n));
-}
-
-sub parse_string {
-    my ($self,$s)=@_;
-    if($self->{'out.entoure'}) {
-	$s =~ s/$self->{'out.entoure'}/$self->{'out.entoure'}$self->{'out.entoure'}/g;
-	$s=$self->{'out.entoure'}.$s.$self->{'out.entoure'};
-    }
-    return($s);
-}
-
-=head1 PRIVATE METHODS
-
-These methods aren't intended for end users.
 
 =head2 pre_process
 
-Import exam, question, and submission data into $self.
+Import exam, question, and submission data.
+
+This method should be considered internal.  Any external method that needs 
+pre-processing should call this method.
+
+FIXME: prevent this method from being called more than once.  It takes 
+a while to run.
+
+C<< $self->{'marks'}  >> is populated in C<AMC::Export::pre_process()>.
+It is an arrayref, with one item for each student.  For each C<$i>, 
+#<< $self->{'marks'}->[$i] >> has keys C<total> and C<max>, along with
+a bunch of other stuff.
+
+C<< $self->{'questions'} >> is populated by the result of 
+C<AMC::DataModule::scoring::codes_questions>,
+with one item for each (non-indicative) question.  For each C<$i>,
+C<< $self->{'questions'}->[$i] >> has keys/values
+
+=over
+
+=item C<title>: unique string identifying the question
+
+=item C<question>: integer ID in database
+
+=back
+
+C<< $self->{'submissions'} >> is populated by looking up each student's
+responses and results. These come from 
+C<AMC::DataModule::scoring::question_result> and 
+C<AMC::ItemAnalysis::capture::question_response>.  The $ith element of
+C<< $self->{'submissions'} >> is the complete list of responses for the
+student in the $ith element of C<< $self->{'marks'} >>.  For each C<$i>, 
+C<< $self->{'submissions'}->[$i] >> is a hashref, keyed on question 
+titles. For each question title C<$k>, 
+C<< $self->{'submissions'}->[$i]->{$k} >> has keys/values
+
+=over
+
+=item C<score>: score by student C<$i> on question C<$k>
+
+=item C<response>: response by student C<$i> on question C<$k>
+
+=item C<index>: question number (not sure if this is in the DB or on
+the student's paper).
+
+=back
+
+C<< $self->{'metadata'} >>  will contain any metadata we can discover
+about the exam.
+So far, that is only the C<title>.
+
+B<TODO:> get additional metadata from the TeX file, if possible.
+(Exam date maybe?)
+
+C<< $self->{'summary'} >> will contain any summary statistics about the
+exam total score. This method only sets a C<ceiling> key/value (maximum 
+possible score, where as C<max> is maximum achieved score).  
+Later methods will add to it.
 
 =cut
-# This method should be considered internal.  Any external method that needs 
-# pre-processing should call this method.
-#
-# FIXME: prevent this method from being called more than once.
-# 
-# $self->{'marks'} is populated in AMC::Export::pre_process().  It is an arrayref,
-# with one item for each student.  For each $i, 
-# $self->{'marks'}->[$i] has keys 'total' and 'max', along with a bunch of other stuff.
-#
-# $self->{'questions'} is populated by the result of AMC::DataModule::scoring::codes_questions,
-# with one item for each (non-indicative) question.  For each $i,
-# $self->{'questions'}->[$i] has keys/values
-# - title: unique string identifying the question
-# - question: integer ID in database
-#
-# $self->{'submissions'} is populated by looking up each student's responses and results.
-# These come from AMC::DataModule::scoring::question_result and 
-# AMC::ItemAnalysis::capture::question_response.  The $ith element of $self->{'submissions'}.
-# is the complete list of responses for the student in the $ith element of $self->{'marks'}. 
-# For each $i, $self->{'submissions'}->[$i] is a hashref, keyed on question titles.
-# For each question title $k, $self->{'submissions'}->[$i]->{$k} has keys/values
-# - score: score by student $i on question $k
-# - response: response by student $i on question $k
-# - index: question number (not sure if this is in the DB or on the student's paper).
-#
-# $self->{'metadata'} will contain any metadata we can discover about the exam.
-# - title: title of the exam
-# TODO: get additional metadata from the TeX file, if possible.
-#
-# $self->{'summary'} will contain any summary statistics about the exam total score.
-# This method only sets a 'ceiling' key/value (maximum possible score, where as 'max'
-# is maximum achieved score).  Later methods will add to it.
+
 sub pre_process {
     my ($self) = @_;
     # print "get_data:BEGIN\n";
@@ -593,7 +640,7 @@ sub correlation {
 # classify the discrimination of an item 
 #
 # ScorePak® classifies item discrimination as “good” if the index is above 
-# .30; “fair” if it is between .10 and.30; and “poor” if it is below .10.
+# .30; “fair” if it is between .10 and .30; and “poor” if it is below .10.
 sub classify_discrimination {
     my ($self,$q) = @_;
     $diff = $q->{'discrimination'};
@@ -657,24 +704,27 @@ sub compute_summary_statistics {
     }
 }
 
-# export to file
-#
-# Since there is no AMC::Export::register::ItemAnalysis module, this will never
-# get called by the GUI.  But in case you want a dump from Data::Dumper of the
-# data in a file, here it is.
-sub export {    
-    my ($self,$fichier)=@_;
-    $self->analyze();
-    my $data = {
-        'metadata' => $self->{'metadata'},
-        'summary' => $self->{'summary'},
-        'items' => $self->{'questions'},
-        'submissions' => $self->{'submissions'},
-        'totals' => $self->{'marks'}
-    };
-    open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
-    print OUT Dumper($data);
-    close(OUT);
+# These methods are so private they won't be documented.
+
+# format a number
+# This is copypasta from AMC::Export::CSV.  Maybe we don't need it.
+sub parse_num {
+    my ($self,$n)= @_;
+    if($self->{'out.decimal'} ne '.') {
+	$n =~ s/\./$self->{'out.decimal'}/;
+    }
+    return($self->parse_string($n));
 }
+
+# This is copypasta from AMC::Export::CSV.  Maybe we don't need it.
+sub parse_string {
+    my ($self,$s)=@_;
+    if($self->{'out.entoure'}) {
+	$s =~ s/$self->{'out.entoure'}/$self->{'out.entoure'}$self->{'out.entoure'}/g;
+	$s=$self->{'out.entoure'}.$s.$self->{'out.entoure'};
+    }
+    return($s);
+}
+
 
 1;
