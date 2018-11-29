@@ -7,6 +7,21 @@
 
 Matthew Leingang <leingang@nyu.edu>
 
+=head1 SYNOPSIS
+
+Within this directory:
+
+    prove -I ../lib 00-load.t
+
+Within the project root directory:
+
+    prove -l 00-load.t
+
+Or as part of the entire test suite:
+
+    perl Build.PL
+    ./Build test
+
 =cut
 #
 # Copyright (C) 2018 Matthew Leingang <leingang@nyu.edu>
