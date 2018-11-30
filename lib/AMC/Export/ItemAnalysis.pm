@@ -182,7 +182,7 @@ sub analyze {
     $self->{'_debug.totals'} = \@totals;
     $total_stats->add_data(@totals);
     $summary = $self->{'summary'};
-    $self->compute_summary_statistics($total_stats,$summary);
+    compute_summary_statistics($total_stats,$summary);
 
     # analyze each question
     $question_stats = Statistics::Descriptive::Full->new();
@@ -197,17 +197,11 @@ sub analyze {
         # Compute correlation of this item with the total.
         my ($b, $a, $r, $rms) = $question_stats->least_squares_fit(@totals);
         $question->{'discrimination'} = $r;
-        $question->{'discrimination_class'} = $self->classify_discrimination($question);
-        # FIXME: DRY this up.  The routine below alters the data in $question_stats, though.
-        # $self->compute_summary_statistics($question_stats,$question);        
-        $question->{'mean'} = $question_stats->mean();
-        $question->{'standard_deviation'} = $question_stats->standard_deviation();
-        $question->{'min'} = $question_stats->min();
-        $question->{'max'} = $question_stats->max();
-        $question->{'count'} = $question_stats->count();
-       	if ($question->{'ceiling'} != 0) {
+        $question->{'discrimination_class'} = classify_discrimination($question);
+        compute_summary_statistics($question_stats,$question);        
+        if ($question->{'ceiling'} != 0) {
             $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
-            $question->{'difficulty_class'} = $self->classify_difficulty($question);
+            $question->{'difficulty_class'} = classify_difficulty($question);
 	    }
         $question->{'type_class'} = $self->classify_type($question);
 
@@ -260,7 +254,7 @@ sub analyze {
         }        
     }
     $self->{'summary'}->{'alpha'} = $self->alpha();
-    $self->add_labels();
+    $self->_add_labels();
 }
 
 =head2 export 
@@ -291,7 +285,8 @@ sub export {
 
 =head1 PRIVATE METHODS
 
-These methods aren't intended for end users.
+These methods aren't intended for end users.  They're documented just
+to make sure we know what's going on.
 
 =head2 load
 
@@ -329,7 +324,7 @@ pre-processing should call this method.
 FIXME: prevent this method from being called more than once.  It takes 
 a while to run.
 
-C<< $self->{'marks'}  >> is populated in C<AMC::Export::pre_process()>.
+C<< $self->{'marks'}  >> is populated by C<AMC::Export::pre_process>.
 It is an arrayref, with one item for each student.  For each C<$i>, 
 #<< $self->{'marks'}->[$i] >> has keys C<total> and C<max>, along with
 a bunch of other stuff.
@@ -511,6 +506,7 @@ permutations of answers).
 See L<Issue 2|https://github.com/leingang/AMC-ItemAnalysis/issues/2>
 
 =cut
+
 sub weight_student_scoring_base {
     my ($self, $student, $ssb) = @_;
     $scorer = $self->{'_score'};
@@ -565,32 +561,19 @@ sub weight_student_scoring_base {
 }
 
 
+=head2 alpha
 
-# add answer labels to histogram
-sub add_labels {
-    my $self = shift;
-    $project_dir = dirname($self->{'fich.datadir'});
-    $cslog_file_name = $project_dir . "/amc-compiled.cs";
-    if ( -e $cslog_file_name) {
-        my $cslog_parser = AMC::CSLog->new();
-        my $labels = $cslog_parser->parse($cslog_file_name);
-        for (@$labels) {
-            my $question_name = $_->{'question_name'};
-            my $answer_number = $_->{'answer_number'};
-            my $answer_label  = $_->{'answer_label'};
-            $question = first {$_->{'title'} eq $question_name } @{$self->{'questions'}};
-            $question->{'histogram'}->{$answer_number}->{'label'} = $answer_label;
-        }
-    }
-}
+Compute Cronbach's alpha for the entire exam.
 
+No parameters.  It's basically an object property that's evaluated.
 
-# compute Cronbach's alpha for the entire exam.
-#
-# Uses the formula from L<https://en.wikipedia.org/wiki/Cronbach%27s_alpha>
-# 
-# implementation is not the most efficient, but I had trouble getting others
-# to work.
+Uses the formula from 
+L<the Wikipedia page|https://en.wikipedia.org/wiki/Cronbach%27s_alpha>.
+The mplementation is not the most efficient, but I had trouble getting others
+to work.
+
+=cut
+
 sub alpha {
     my $self = shift;
     my $K = scalar @{$self->{'questions'}};
@@ -604,13 +587,22 @@ sub alpha {
     return $K/($K-1)*(1 - $sum_of_variances/$total_variance);
 }
 
-# classify the difficulty of an item 
-#
-# ScorePak® arbitrarily classifies item difficulty as “easy” if the index is
-# 85% or above; “moderate” if it is between 51 and 84%; and “hard” if it is 
-# 50% or below.
+=head2 classify_difficulty
+
+Classify the difficulty of an item 
+
+Parameter: hashref of question statistics.
+
+ScorePak® arbitrarily classifies item difficulty as “easy” if the index is
+85% or above; “moderate” if it is between 51 and 84%; and “hard” if it is 
+50% or below.  This suroutine makes the same classification.  Which means
+as long as a key C<difficulty> is passed, the routine will return a
+meaningful classification.
+
+=cut
+
 sub classify_difficulty {
-    my ($self,$q) = @_;
+    my $q = shift;
     $diff = $q->{'difficulty'};
     if ($diff >= 0.85) {
         return "Easy"
@@ -623,26 +615,20 @@ sub classify_difficulty {
     }
 }
 
-# compute correlation between two Statistics::Descriptive variables 
-# just to test;
-sub correlation {
-    my ($self,$x_stats,$y_stats) = @_;
-    my @x = $x_stats->get_data();
-    my @y = $y_stats->get_data();
-    my @xy = map {$x[$_] * $y[$_]} (0 .. $#x);
-    $xy_stats = Statistics::Descriptive::Full->new();
-    $xy_stats->add_data(@xy);
-    return ($xy_stats->mean() - ($x_stats->mean())*($y_stats->mean())) /
-        ($x_stats->standard_deviation()*$y_stats->standard_deviation())
-}
+=head2 classify_discrimination
 
+Classify the discrimination of an item 
 
-# classify the discrimination of an item 
-#
-# ScorePak® classifies item discrimination as “good” if the index is above 
-# .30; “fair” if it is between .10 and .30; and “poor” if it is below .10.
+ScorePak® classifies item discrimination as “good” if the index is above 
+.30; “fair” if it is between .10 and .30; and “poor” if it is below .10.
+This suroutine makes the same classification.  Which means
+as long as a key C<discrimination> is passed, the routine will return a
+meaningful classification.
+
+=cut 
+
 sub classify_discrimination {
-    my ($self,$q) = @_;
+    my $q = shift;
     $diff = $q->{'discrimination'};
     if ($diff >= 0.3) {
         return "Good"
@@ -655,9 +641,57 @@ sub classify_discrimination {
     }
 }
 
-# classify the type of a problem
+
+# compute correlation between two Statistics::Descriptive variables 
 #
-# Returns 'MC', 'MS', or 'FR' accordingly
+# This was put in just to test the module's own calculation.  
+# FIXME: put it somewhere else like in a Statistics::Descriptive test.
+sub _correlation {
+    my ($self,$x_stats,$y_stats) = @_;
+    my @x = $x_stats->get_data();
+    my @y = $y_stats->get_data();
+    my @xy = map {$x[$_] * $y[$_]} (0 .. $#x);
+    $xy_stats = Statistics::Descriptive::Full->new();
+    $xy_stats->add_data(@xy);
+    return ($xy_stats->mean() - ($x_stats->mean())*($y_stats->mean())) /
+        ($x_stats->standard_deviation()*$y_stats->standard_deviation())
+}
+
+
+=head2 classify_type 
+
+Classify the type of a question
+
+Parameter: hashref of question data/metadata.  
+
+Returns 'MC', 'MS', or 'FR' accordingly:
+
+=over 
+
+=item C<MC>: question is fixed response (B<m>ultiple B<c>hoice) with a single
+correct answer.
+
+=item C<MS>: question is fixed response with multiple correct answers
+(B<m>ultiple B<s>election)
+
+=item C<FR>: question is "open" or B<f>ree B<r>esponse.
+
+=back 
+
+CAVEAT: This routine isn't all that reliable.  It correctly identifies MC
+problems and true MS problems.  But numeric problems are still identified as 
+MS problems, because that is how they are implemented in AMC's database.
+
+The routine delegates to L</question_is_open> the identification of FR
+questions, but that is also suspect.  
+
+The issue is that these types of questions are only declared in the source
+file.
+
+=cut
+
+# TODO: create some tests for this function based on mt1
+# Also a quiz that has numeric questions, like Honors Calc III Q13 (?)
 sub classify_type {
     my ($self,$q) = @_;
     if ($self->question_is_open($q)) {
@@ -675,55 +709,80 @@ sub classify_type {
     }
 }
 
-# decide if a quesition is 'open' 
-# or free response
-# 
-# for now, we parse the title
-# but better would be to parse the source file
-# at load time.
+=head2 question_is_open
+
+C<< $obj->question_is_open($q) >> Decides if $q is “open” or free 
+response
+
+Parameter: hashref of question data/metadata
+
+B<CAVEAT>: Currently, this only does a regex match on the question's
+string identifier (its C<title> in the database.)  This isn't that
+reliable.  
+
+=cut
+
 sub question_is_open {
     my ($self,$q) = @_;
     return ($q->{'title'} =~ /^FR/);
 }
 
+=head2 compute_summary_statistics
 
-# compute summary statistics for a data set
-#
-# helper routine to turn two repeated lines of code into one
-#
-# arguments:
-#     $analyzer (Statistics::Descriptive): object that computes the stats
-#     $dest: destination for those statistics
-#
-# FIXME: seems to alter the data.
-# Possible improvements: return value, select stats...
+C<compute_summary_statistics($analyzer,$dest)> will compute summary
+statistics for the data in C<$analyzer> and store it in the hashref
+C<$dest>.
+
+C<$analyzer> is expected to be an object of class
+L<Statistics::Descriptive>, or at least something that has methods
+of the names described blow.
+
+These keys are set in C<$dest>: C<mean>, C<median>, 
+C<standard_deviation>, C<min>, C<max>, and C<count>.
+
+=cut 
+
 sub compute_summary_statistics {
-    my ($self,$analyzer,$dest) = @_;
-    for (qw(mean median standard_deviation min max count)) {
+    my ($analyzer,$dest) = @_;
+    for (qw(mean standard_deviation min max count)) {
         $dest->{$_} = $analyzer->$_();
     }
+    # these methods sort the data, which messes with
+    # correlations.  So we do them on a copy.
+    $analyzer_copy = Statistics::Descriptive::Full->new();
+    $analyzer_copy->add_data($analyzer->get_data());
+    $dest->{'median'} = $analyzer_copy->median();
+    $dest->{'Q1'} = $analyzer_copy->quantile(1);
+    $dest->{'Q3'} = $analyzer_copy->quantile(3);
 }
 
-# These methods are so private they won't be documented.
+# REALLY PRIVATE METHODS
+# ----------------------
 
-# format a number
-# This is copypasta from AMC::Export::CSV.  Maybe we don't need it.
-sub parse_num {
-    my ($self,$n)= @_;
-    if($self->{'out.decimal'} ne '.') {
-	$n =~ s/\./$self->{'out.decimal'}/;
-    }
-    return($self->parse_string($n));
-}
+# These methods won't be publicly documented.
+# They begin with an underscore so Test::Pod::Coverage
+# won't complain about that.
 
-# This is copypasta from AMC::Export::CSV.  Maybe we don't need it.
-sub parse_string {
-    my ($self,$s)=@_;
-    if($self->{'out.entoure'}) {
-	$s =~ s/$self->{'out.entoure'}/$self->{'out.entoure'}$self->{'out.entoure'}/g;
-	$s=$self->{'out.entoure'}.$s.$self->{'out.entoure'};
+
+# add answer labels to histogram
+#
+# Uses the C<AMC::CSLog> module to parse the project's F<amc-compiled.cs>
+# log file.
+sub _add_labels {
+    my $self = shift;
+    $project_dir = dirname($self->{'fich.datadir'});
+    $cslog_file_name = $project_dir . "/amc-compiled.cs";
+    if ( -e $cslog_file_name) {
+        my $cslog_parser = AMC::CSLog->new();
+        my $labels = $cslog_parser->parse($cslog_file_name);
+        for (@$labels) {
+            my $question_name = $_->{'question_name'};
+            my $answer_number = $_->{'answer_number'};
+            my $answer_label  = $_->{'answer_label'};
+            $question = first {$_->{'title'} eq $question_name } @{$self->{'questions'}};
+            $question->{'histogram'}->{$answer_number}->{'label'} = $answer_label;
+        }
     }
-    return($s);
 }
 
 
