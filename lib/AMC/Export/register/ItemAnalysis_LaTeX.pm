@@ -16,6 +16,25 @@
 # You should have received a copy of the GNU General Public License along
 # with AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
 
+=pod
+
+=encoding utf8
+
+=head1 NAME
+
+AMC::Export::register::ItemAnalysis_LaTeX - Register an export plugin into 
+the AMC interface that exports item analysis to a LaTeX file.
+
+=head1 SYNOPSIS
+
+This module code is loaded and executed by F<AMC-gui.pl>. 
+
+=head1 SEE ALSO
+
+L<AMC::Export::register>
+
+=cut
+
 package AMC::Export::register::ItemAnalysis_LaTeX;
 
 use AMC::Export::register;
@@ -26,6 +45,7 @@ use Gtk3;
 
 @ISA=("AMC::Export::register");
 
+
 sub new {
     my $class = shift;
     my $self  = $class->SUPER::new();
@@ -33,9 +53,12 @@ sub new {
     return $self;
 }
 
+
 sub name {
   return('Item Analysis (LaTeX)');
 }
+
+
 
 sub extension {
   return('-item-analysis.tex');
