@@ -20,3 +20,4 @@ Makefile.PL
 doc/ItemAnalysis.rst
 doc/Tiny.rst
 doc/CSLog.rst
+.vscode
