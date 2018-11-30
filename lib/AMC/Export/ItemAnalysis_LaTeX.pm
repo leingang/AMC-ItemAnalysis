@@ -16,18 +16,51 @@
 # You should have received a copy of the GNU General Public License along
 # with AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
 
-package AMC::Export::ItemAnalysis_LaTeX;
+=pod
 
-# use AMC::Basic;
-# use AMC::Export;
-# use Encode;
+=encoding utf8
+
+=head1 NAME
+
+AMC::Export::ItemAnalysis_LaTeX - Export item analysis to a LaTeX file.
+
+=head1 SYNOPSIS
+
+From a script:
+
+    use AMC::Export::ItemAnalysis_LaTeX;
+
+    my $project_dir = "/path/to/MC-Projects/exam";
+    my $data_dir = $project_dir . "/data";
+    my $fich_noms = $project_dir . "/students-list.csv";
+    my $output_file = $project_dir . "/exports/exam-item-analysis.tex";
+    my $ex = AMC::Export::ItemAnalysis_LaTeX->new();
+    $ex->set_options("fich","datadir"=>$data_dir,"noms"=>$fich_noms);
+    $ex->export($output_file);
+
+From the command line:
+
+    cd /path/to/MC-Projects/exam
+    auto-multiple-choice export --module ItemAnalysis_LaTeX \
+        --data data \
+        --fich-noms students-list.csv \
+        --o exports/exam-item-analysis.tex
+
+=cut 
+
+package AMC::Export::ItemAnalysis_LaTeX;
 
 use parent q(AMC::Export::ItemAnalysis);
 
-# export latex file
-# 
-# Decided against using a templating engine since we are only writing a single file.
-# I may regret that later.
+=head1 METHOD
+
+=head2 export
+
+Exports the analysis to a LaTeX file.  The sole argument
+is the name of the output file to write to.
+
+=cut
+
 sub export {    
     my ($self,$fichier)=@_;
     $self->analyze();
@@ -195,3 +228,57 @@ sub export {
 }
 
 1;
+__END__
+
+=pod
+
+=head1 NOTES
+
+At this time there is no templating of the LaTeX file, or hooks 
+to include customization.  After creating the file, you can edit
+it or compile it right away.  
+
+If you edit the file and include other information, it's probably
+best to save the file under a different name.  Otherwise future
+exports will clobber your edits.
+
+Note that the LaTeX file makes use of the C<longtable> package,
+which multiple passes through the document to properly balance 
+columns and pages.  Three runs seems to be the maximum needed.
+
+The AMC GUI give an option to open the exported file immediately
+after the export completes.  This is by selecting “open the file”
+from the drop-down menu after “and then.”  Due to limitations in
+AMC's configuration system, there is no way to specify which 
+program should open the file.  So selecting “open the file” will
+not have any effect.  Selecting “open the directory” will at
+least do that, and then you can double-click on the file to 
+open it in your favorite TeX editor.
+
+=head1 SEE ALSO
+
+L<AMC::ItemAnalysis>, L<AMC::Export::ItemAnalysis>, 
+L<AMC::Export::ItemAnalysis_YAML>
+
+
+=head1 AUTHOR
+
+Matthew Leingang, C<< <leingang@nyu.edu> >>
+
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2018 Matthew Leingang
+
+AMC-ItemAnalysis is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+AMC-ItemAnalysis is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
+
