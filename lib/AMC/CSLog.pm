@@ -15,6 +15,26 @@
 #
 # You should have received a copy of the GNU General Public License along
 # with AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
+=pod
+
+=encoding utf8
+
+=head1 NAME
+
+AMC::CSLog - Parse the amc-compiled.cs log
+
+=head1 SYNOPSIS
+
+    my $cslog_parser = AMC::CSLog->new();
+    my $labels = $cslog_parser->parse($cslog_file_name);
+    for (@$labels) {
+        my $question_name = $_->{'question_number'};
+        my $answer_number = $_->{'answer_number'};
+        my $answer_label  = $_->{'answer_label'};
+        printf "Question %d, answer %d, has label '%s'\n",
+            $question_number, $answer_number, $answer_label;
+         
+=cut 
 
 package AMC::CSLog;
 
@@ -22,12 +42,42 @@ use 5.008;
 use strict;
 use warnings;
 
+=head1 METHODS
+
+=head2 new
+
+Constructor.  No arguments, returns a reference to an object 
+of this class.
+
+=cut
+
 sub new {
     my $class = shift;
     my $self = {};
     bless ($self, $class);
     return $self;
 }
+
+=head2 parse
+
+C<< $obj->parse($file_name) parses a F<amc-compiled.cs> file.
+This file is created by one of the AMC jobs and has lots of lines 
+of the form
+
+    \answer{1/3:case:MC-counterex-div:10,1}{A}
+
+I don't know what the first number is for.  The second number, the one
+after the slash, is probably the page number the question appears on.
+The string between the second and third colons, is the string
+identifier of the question.  After the third colon come the question
+number (identifier in the database) and the answer number.  Finally,
+between the last two braces is the answer label.
+
+The method returns an arrayref of hashrefs.  Each referenced hash has
+keys C<question_name>, C<question_number>, C<answer_numbe>, and
+C<answer_label>.
+
+=cut
 
 sub parse {
     my ($self,$file_name) = @_;
@@ -46,43 +96,8 @@ sub parse {
     return $result;
 }
 
-
-
 1;
-
 __END__
-
-=pod
-
-=encoding utf8
-
-
-=head1 NAME
-
-AMC::CSLog - Parse the AMC .cs log
-
-
-=head1 SYNOPSIS
-
-In a perl program:
-
-    use AMC::CSLog;
-
-    $parser = AMC::CSLog->new();
-    $rows = $parser->parse($file_name);
-
-    for $row (@$rows) {
-        $question_name = $row->{'question_name'}
-        $answer_number = $row->{'answer_number'}
-        $answer_label = $row->{'answer_label'}
-        for $answer_num (@{$data->{$question_name}}) {
-            printf "Question '%s', answer #%d, label: %s", 
-                $question_name,
-                $answer_number, $answer_label;
-        }
-    }
-
-=head1 SUBROUTINES/METHODS
 
 
 =head1 AUTHOR
