@@ -48,16 +48,18 @@ use Test::More;
 BEGIN {
 
     my @modules = qw(AMC::ItemAnalysis 
-        AMC::Export::ItemAnalysis 
+        AMC::Export::ItemAnalysis
         AMC::Export::ItemAnalysis_YAML
         AMC::Export::ItemAnalysis_LaTeX
         AMC::Export::register::ItemAnalysis_YAML
         AMC::Export::register::ItemAnalysis_LaTeX
-        AMC::ItemAnalysis::capture);
+        AMC::ItemAnalysis::capture
+        AMC::CSLog
+        YAML::Tiny);
     plan tests => scalar @modules;  
 
     foreach (@modules) {
-        use_ok( $_ );
+        use_ok( $_ ) && diag("Use $_ succeeded");
     }
 }
 
