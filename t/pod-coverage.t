@@ -21,4 +21,11 @@ eval "use Pod::Coverage $min_pc";
 plan skip_all => "Pod::Coverage $min_pc required for testing POD coverage"
     if $@;
 
-all_pod_coverage_ok();
+my @modules = all_modules();
+plan tests => scalar @modules;  
+
+my $trustparents = { coverage_class => 'Pod::Coverage::CountParents' };
+
+foreach (@modules) {
+    pod_coverage_ok($_, $trustparents, "POD Coverage for $_");
+}
