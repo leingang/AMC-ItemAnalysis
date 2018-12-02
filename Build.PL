@@ -50,7 +50,7 @@ my $class = Module::Build->subclass(code => q(
         my $rst_path = $_;
         $rst_path =~ s/$File::Find::dir/$docroot/;  # path
         $rst_path =~ s/\.[^\.]*$/.rst/;  # file extension
-        open my $stream, '>', $rst_path;
+        open my $stream, '>:utf8', $rst_path;
         print $stream $rst;
         close $stream;
         print "Documentation written to $rst_path\n";
