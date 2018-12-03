@@ -25,6 +25,7 @@
 AMC::Export::ItemAnalysis - Abstract class for exporting item analyses
 
 =cut 
+
 package AMC::Export::ItemAnalysis;
 
 use AMC::Basic;
