@@ -85,6 +85,7 @@ sub export {
 \usepackage{tikz}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.16}
+\usetikzlibrary{pgfplots.statistics}
 \tikzset{
     bar/.style={xscale=2,yscale=0.25,draw=black,fill=gray},
     correct/.style={fill=green!50!black},
@@ -114,6 +115,14 @@ sub export {
             \node[y interval] at (yticklabel* cs:0.2) {Fair};
             \node[y interval] at (yticklabel* cs:0.65) {Good};
         }        
+    },
+    question boxplot/.style={
+        y=0.25cm,
+        ytick=\empty,
+        axis x line=none,
+        axis y line=none,
+        every axis/.append style={
+            anchor=xticklabel* cs:0},
     }
 }
 \usepackage{longtable}
@@ -146,6 +155,8 @@ sub export {
 
 \section{Item statistics}
 
+\section{Fixed response questions}
+
 \begin{longtable}{rSSrlSlcSSrSl}
 \hline
 \bfseries Item 
@@ -160,9 +171,10 @@ sub export {
 & \bfseries Distribution \\\\
 \hline\endhead
 );
-    # print stats for each item:
+    # print stats for each multiple choice item:
     for my $i (0 .. $#{$self->{'questions'}}) {
         $q = $self->{'questions'}->[$i];
+        next if ($q->{'type_class'} eq 'FR');
         print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
         print $fh  sprintf ("%.2f", $q->{'mean'}), " & ";
         print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " & ";
@@ -191,6 +203,42 @@ sub export {
     # end of item table
     print $fh q(\end{longtable}), "\n\n";
 
+    # print stats for each free response item:
+    print $fh q(
+\subsection{Free response items}
+
+\begin{longtable}{rSSrlSlc}
+\hline
+\bfseries Item 
+& \bfseries Mean 
+& \bfseries StDev 
+& \multicolumn{2}{c}{\bfseries Difficulty}
+& \multicolumn{2}{c}{\bfseries Discrimination}
+& \bfseries Distribution
+\\\\\hline\endhead
+    );
+    for my $i (0 .. $#{$self->{'questions'}}) {
+        $q = $self->{'questions'}->[$i];
+        next unless ($q->{'type_class'} eq 'FR');
+        print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
+        print $fh  sprintf ("%.2f", $q->{'mean'}), " & ";
+        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " & ";
+        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " & ";
+        print $fh  $q->{'difficulty_class'} , " & "; 
+        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
+        print $fh  $q->{'discrimination_class'} , " & "; 
+        print $fh q(\tikz[baseline]{\begin{axis}[question boxplot]
+        \addplot+[boxplot prepared={);
+        print $fh sprintf "lower whisker=%d, lower quartile=%0.1f, " 
+            . "median=%0.1f, upper quartile=%0.1f, upper whisker=%d",
+                $q->{'min'}, $q->{'Q1'}, $q->{'median'},
+                $q->{'Q3'}, $q->{'max'};
+        print $fh q(}] coordinates {};
+\end{axis}}\\\\);
+    }
+    print $fh q(\end{longtable});
+
+
     # print the scatterplot
     print $fh q(
 \section{Scatterplot}
@@ -217,6 +265,7 @@ sub export {
 \end{tikzpicture}
 \end{center}        
     );
+
     # print summary statistics especially alpha
     print $fh q(
 \section{Reliability}
