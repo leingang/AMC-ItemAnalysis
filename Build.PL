@@ -31,7 +31,10 @@ my $class = Module::Build->subclass(code => q(
     use strict;
     use warnings;
     
+    use File::Basename qw(fileparse);
     use File::Find;
+    use File::Spec;
+    use File::Path qw(make_path);
     use Pod::POM;
     use Pod::POM::View::Restructured;
     
@@ -47,10 +50,12 @@ my $class = Module::Build->subclass(code => q(
         my $pom = $parser->parse_file($_);
         return if not @{$pom->content()};
         my $rst = $pom->present(new Pod::POM::View::Restructured->new());
-        my $rst_path = $_;
-        $rst_path =~ s/$File::Find::dir/$docroot/;  # path
+        my $rst_path = File::Spec->catfile($docroot,$_);
+        # $rst_path =~ s/$File::Find::dir/$docroot/;  # path
         $rst_path =~ s/\.[^\.]*$/.rst/;  # file extension
-        open my $stream, '>:utf8', $rst_path;
+        my ($basename, $directories) = fileparse $rst_path;
+        if (! -d $directories) { make_path $directories or die "Failed to create path: $directories";}
+        open (my $stream, '>:utf8', $rst_path) or die "Failed to open stream: $rst_path";
         print $stream $rst;
         close $stream;
         print "Documentation written to $rst_path\n";

@@ -17,11 +17,5 @@ pm_to_blib
 AMC-ItemAnalysis-*
 AMC-ItemAnalysis-*.tar.gz
 Makefile.PL
-doc/ItemAnalysis.rst
-doc/Tiny.rst
-doc/CSLog.rst
 .vscode
-doc/ItemAnalysis_LaTeX.rst
-doc/ItemAnalysis_YAML.rst
-doc/capture.rst
-doc/register.rst
+doc/lib
