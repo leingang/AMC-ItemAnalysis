@@ -54,11 +54,13 @@ The weight of the config ui widget.  Determines its vertical position.
 Hide the "standard export options" (student sort order dropdown, 
 include absentees checkbox) in the Reports tab.
 
+
 =head1 AUTHOR
 
 Alexis Bienvenue C<< <paamc@passoire.fr> >> wrote the code.
 
-Matthew Leingang C<< <leingang@nyu.edu >> wrote this documentation.
+Matthew Leingang C<< <leingang@nyu.edu> >> wrote this documentation, 
+mainly to understand how the code works.
 
 
 =head1 COPYRIGHT AND LICENSE
