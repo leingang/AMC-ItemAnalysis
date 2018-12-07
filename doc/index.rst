@@ -10,7 +10,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-
+   about
+   install
+   usage
+   support
+   license
 
 Indices and tables
 ==================
@@ -19,3 +23,9 @@ Indices and tables
 * :doc:`my_modindex`
 * :ref:`search`
 
+See also
+========
+
+* `auto-multiple-choice`_ project page
+
+.. _`auto-multiple-choice`: https://www.auto-multiple-choice.net
