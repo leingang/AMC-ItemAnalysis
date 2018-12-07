@@ -1,5 +1,28 @@
 Revision history for AMC-ItemAnalysis
 
-0.01    Date/time
-        First version, released on an unsuspecting world.
+0.5     2018-12-07
+        Open questions are now visualized with box-and-whisker plots instead of
+        bar charts.  
+        
+        Added documentation in Sphinx.
+
+        Mild GUI improvements.  Namely, inoperative controls are removed.
+
+        Various bugs and typos fixed.
+
+0.4     2017-11-27
+        Questions are now sorted by database order.  This should be pretty close
+        to catalog order.  Likely the most desired order.
+
+0.3     2018-11-25
+        Answer labels (A, B, C, ...) are now reported when available.
+
+        Some code cleanup.
+
+0.2     2018-11-22
+        Code refactoring to include separate export modules for separate
+        formats.
+
+0.1     2018-11-16
+        First working release.
 
