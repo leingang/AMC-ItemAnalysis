@@ -60,7 +60,7 @@ sub new {
 
 =head2 parse
 
-C<< $obj->parse($file_name) parses a F<amc-compiled.cs> file.
+C<< $obj->parse($file_name) >> parses a F<amc-compiled.cs> file.
 This file is created by one of the AMC jobs and has lots of lines 
 of the form
 
