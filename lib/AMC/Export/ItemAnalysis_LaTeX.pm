@@ -183,9 +183,9 @@ sub export {
         print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
         print $fh  $q->{'discrimination_class'} , " & "; 
         my $row = 0;
-        @answers = sort keys (%{$q->{'histogram'}});
+        @answers = sort keys (%{$q->{'responses'}});
         for my $k (@answers) {
-            $a = $q->{'histogram'}->{$k};
+            $a = $q->{'responses'}->{$k};
             if ($row++) {
                 print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
             }

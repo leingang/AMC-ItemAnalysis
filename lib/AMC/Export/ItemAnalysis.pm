@@ -113,7 +113,7 @@ difficult items will have a difficulty closer to zero.
 question's discrimination.  Current values are “Easy”, “Moderate”, or
 ”Hard”.
 
-=item C<histogram>: a hashref of hashrefs keyed by the answer number
+=item C<responses>: a hashref of hashrefs keyed by the answer number
 (as a string).  For each key C<$a>, the following keys are set:
 
 =over
@@ -136,9 +136,6 @@ with multiple correct answers, this is probably the problem score divided
 by the number of answers.  See L</weight_student_scoring_base> below.
 
 =back
-
-B<TODO:> Replace the word I<histogram>: I just learned that's not what the
-word means.
 
 =back
 
@@ -207,11 +204,11 @@ sub analyze {
         $question->{'type_class'} = $self->classify_type($question);
 
 
-        # create the histogram
+        # create the response hash
         # We do this by sorting the reponses by the answers and collecting the total scores.
         # there might be a map / filter / accumulate way to do this,
         # but remember that the scoring_base may depend on the question *and* the student.
-        $histogram = $question->{'histogram'} = {};
+        $responses = $question->{'responses'} = {};
         # the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
         # Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
         $total_by_response = {};   
@@ -222,9 +219,9 @@ sub analyze {
             $sb = $response->{'scoring_base'};
             for my $answer (@{$sb->{'answers'}}) {
                 $an = $answer->{'answer'}; # answer number
-                unless (defined $histogram->{$an}) {
-                    $histogram->{$an} = {};
-                    $histogram->{$an}->{'correct'} = $answer->{'correct'};
+                unless (defined $responses->{$an}) {
+                    $responses->{$an} = {};
+                    $responses->{$an}->{'correct'} = $answer->{'correct'};
                     $total_by_response->{$an} = [];
                     $weight_by_response->{$an} = [];
                 }
@@ -236,12 +233,12 @@ sub analyze {
         }
         $total_by_response_stats = Statistics::Descriptive::Sparse->new;
         $weight_by_response_stats = Statistics::Descriptive::Full->new;
-        for my $an (keys %{$histogram}) {
+        for my $an (keys %{$responses}) {
             $total_by_response_stats->clear;
             $total_by_response_stats->add_data(@{$total_by_response->{$an}});
-            $histogram->{$an}->{'mean'} = $total_by_response_stats->mean;
-            $histogram->{$an}->{'count'} = $total_by_response_stats->count;
-            $histogram->{$an}->{'frequency'} =
+            $responses->{$an}->{'mean'} = $total_by_response_stats->mean;
+            $responses->{$an}->{'count'} = $total_by_response_stats->count;
+            $responses->{$an}->{'frequency'} =
                 $total_by_response_stats->count / $self->{'summary'}->{'count'};
             $weight_by_response_stats->clear;
             $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
@@ -251,7 +248,7 @@ sub analyze {
             # We use the median to get the most expected answer for the answer's 
             # weight (independent of student).  Mode might also be an option,
             # but I don't know of a test where it would succeed and median wouldn't.            
-            $histogram->{$an}->{'weight'} = $weight_by_response_stats->median;
+            $responses->{$an}->{'weight'} = $weight_by_response_stats->median;
         }        
     }
     $self->{'summary'}->{'alpha'} = $self->alpha();
@@ -765,7 +762,7 @@ sub compute_summary_statistics {
 # won't complain about that.
 
 
-# add answer labels to histogram
+# add answer labels to responses hash
 #
 # Uses the C<AMC::CSLog> module to parse the project's F<amc-compiled.cs>
 # log file.
@@ -781,7 +778,7 @@ sub _add_labels {
             my $answer_number = $_->{'answer_number'};
             my $answer_label  = $_->{'answer_label'};
             $question = first {$_->{'title'} eq $question_name } @{$self->{'questions'}};
-            $question->{'histogram'}->{$answer_number}->{'label'} = $answer_label;
+            $question->{'responses'}->{$answer_number}->{'label'} = $answer_label;
         }
     }
 }

@@ -81,9 +81,9 @@ for my $i (0 .. $#{$ex->{'questions'}}) {
     # print "question: ", Dumper($question);
     my $qname = $question->{'title'};
     # print "labels for this question: ", Dumper ($labels->{$qname});
-    for my $answer_num (keys %{$question->{'histogram'}}) {
+    for my $answer_num (keys %{$question->{'responses'}}) {
         # print "answer_num: ", $answer_num;
-        is ($question->{'histogram'}->{$answer_num}->{'label'},
+        is ($question->{'responses'}->{$answer_num}->{'label'},
             $labels->{$qname}->{$answer_num},
             sprintf("label matches (%s, answer %d)",$qname,$answer_num)
         );

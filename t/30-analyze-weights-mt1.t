@@ -79,8 +79,8 @@ $ex->analyze();
 for my $i (0 .. $#{$ex->{'questions'}}) {
     my $question = $ex->{'questions'}->[$i];
     my $qname = $question->{'title'};
-    for my $answer_num (keys %{$question->{'histogram'}}) {
-        is ($question->{'histogram'}->{$answer_num}->{'weight'},
+    for my $answer_num (keys %{$question->{'responses'}}) {
+        is ($question->{'responses'}->{$answer_num}->{'weight'},
             $weights->{$qname}->{$answer_num},
             sprintf("Weight matches (%s,answer %d)",$qname,$answer_num)
         );
