@@ -1,12 +1,17 @@
+:orphan:
+
 Module Index
 ============
 
-* :doc:`lib/AMC/CSLog`
-* :doc:`lib/AMC/ItemAnalysis`
-* :doc:`lib/AMC/Export/ItemAnalysis`
-* :doc:`lib/AMC/Export/ItemAnalysis_LaTeX`
-* :doc:`lib/AMC/Export/ItemAnalysis_YAML`
-* :doc:`lib/AMC/Export/register`
-* :doc:`lib/AMC/Export/register/ItemAnalysis_LaTeX`
-* :doc:`lib/AMC/ItemAnalysis/capture`
-* :doc:`lib/YAML/Tiny`
+.. toctree::
+   :maxdepth: 1
+   
+   lib/AMC/CSLog
+   lib/AMC/ItemAnalysis
+   lib/AMC/Export/ItemAnalysis
+   lib/AMC/Export/ItemAnalysis_LaTeX
+   lib/AMC/Export/ItemAnalysis_YAML
+   lib/AMC/Export/register
+   lib/AMC/Export/register/ItemAnalysis_LaTeX
+   lib/AMC/ItemAnalysis/capture
+   lib/YAML/Tiny
