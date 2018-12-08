@@ -42,6 +42,7 @@ use Test::More;
 use Data::Dumper;
 use Text::CSV;
 use List::Util q(max);
+use FindBin q($Bin);
 
 use AMC::Export::ItemAnalysis;
 
@@ -80,16 +81,13 @@ my $ex = AMC::Export::ItemAnalysis->new();
 $ex->set_options("fich","datadir"=>$data_dir,"noms"=>$fich_noms);
 $ex->analyze();
 
-TODO: {
-    local $TODO = "not implemented yet";
-    for my $qname (@qnames) {
-    my $qname_padded = sprintf("%${qname_max_length}s", $qname);
-    my @questions = grep { $_->{'title'} eq $qname }  @{$ex->{'questions'}};
-    my $q = shift(@questions);
-    is (
-        $q->{'type_class'},
-        $stats->{$qname}->{'type_class'},
-        "$qname_padded - type_class matches hand coding"
-    );
-}
+for my $qname (@qnames) {
+my $qname_padded = sprintf("%${qname_max_length}s", $qname);
+my @questions = grep { $_->{'title'} eq $qname }  @{$ex->{'questions'}};
+my $q = shift(@questions);
+is (
+    $q->{'type_class'},
+    $stats->{$qname}->{'type_class'},
+    "$qname_padded - type_class matches hand coding"
+);
 }

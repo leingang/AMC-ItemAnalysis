@@ -34,7 +34,7 @@ use AMC::Export;
 use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
 use File::Basename;
-use List::Util qw(sum first);
+use List::Util qw(sum first max reduce);
 use Statistics::Descriptive;
 
 use Encode;
@@ -201,8 +201,6 @@ sub analyze {
             $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
             $question->{'difficulty_class'} = classify_difficulty($question);
 	    }
-        $question->{'type_class'} = $self->classify_type($question);
-
 
         # create the response hash
         # We do this by sorting the reponses by the answers and collecting the total scores.
@@ -250,6 +248,7 @@ sub analyze {
             # but I don't know of a test where it would succeed and median wouldn't.            
             $responses->{$an}->{'weight'} = $weight_by_response_stats->median;
         }        
+        $question->{'type_class'} = $self->classify_type($question);
     }
     $self->{'summary'}->{'alpha'} = $self->alpha();
     $self->_add_labels();
@@ -714,15 +713,24 @@ response
 
 Parameter: hashref of question data/metadata
 
-B<CAVEAT>: Currently, this only does a regex match on the question's
-string identifier (its C<title> in the database.)  This isn't that
-reliable.  
+We see if the list is a range consisting all of all integers from zero
+to the maximum.  This will succeed in all my use cases.  If someone
+makes a free-response problem which skips some values, or has
+non-integer values, this will fail.
 
 =cut
 
 sub question_is_open {
     my ($self,$q) = @_;
-    return ($q->{'title'} =~ /^FR/);
+    # print "q:", Dumper($q);
+    # return ($q->{'title'} =~ /^FR/);
+    # won't work until the answers have been loaded, obvs.
+    @answers = keys %{$q->{'responses'}};
+    # print "answers: ", Dumper(\@answers);
+    @weights = sort map { $q->{'responses'}->{$_}->{'weight'} } @answers;
+    # print "weights: ", Dumper(\@weights);
+    $i = 0;
+    return reduce { $a && ($b == $i++) } 1, @weights; 
 }
 
 =head2 compute_summary_statistics
