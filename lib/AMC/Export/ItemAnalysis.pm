@@ -34,7 +34,7 @@ use AMC::Export;
 use AMC::Scoring;
 use AMC::ItemAnalysis::capture;
 use File::Basename;
-use List::Util qw(sum first max reduce);
+use List::Util qw(sum first min max reduce);
 use Statistics::Descriptive;
 
 use Encode;
@@ -758,8 +758,29 @@ sub compute_summary_statistics {
     $analyzer_copy = Statistics::Descriptive::Full->new();
     $analyzer_copy->add_data($analyzer->get_data());
     $dest->{'median'} = $analyzer_copy->median();
-    $dest->{'Q1'} = $analyzer_copy->quantile(1);
-    $dest->{'Q3'} = $analyzer_copy->quantile(3);
+    my @sorted = $analyzer_copy->get_data;
+    my $Q1, $Q3, $lower, $upper;
+    $dest->{'Q1'} = $Q1 = $analyzer_copy->quantile(1);
+    $dest->{'Q3'} = $Q3 = $analyzer_copy->quantile(3);
+    $dest->{'lower_threshold'} = $lower = $Q1-1.5*($Q3-$Q1);
+    $dest->{'upper_threshold'} = $upper = $Q3+1.5*($Q3-$Q1);
+    my @trimmed = ();
+    my @outliers = ();
+    # partition @sorted into two arrays to weed out 
+    # outliers but keep the good ones.  
+    # See https://stackoverflow.com/a/8618040/297797
+    # for the algorithm and notes.
+    for (@sorted) {
+        if (($_ >= $lower ) && ($_ <= $upper )) {
+            push @trimmed, $_;
+        }
+        else {
+            push @outliers, $_;
+        }
+    }
+    $dest->{'upper_extreme'} = max @trimmed;
+    $dest->{'lower_extreme'} = min @trimmed;
+    $dest->{'outliers'} = \@outliers;
 }
 
 # REALLY PRIVATE METHODS

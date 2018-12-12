@@ -1,0 +1,14 @@
+name,median,Q1,Q3,lower_threshold,upper_threshold,upper_extreme,lower_extreme
+Mark,80,74,91,48.5,116.5,99,60
+FR-IP-a,5,3,5,0,8,5,0
+FR-IP-b,5,3,5,0,8,5,0
+FR-IP-c,3,2,4,-1,7,4,0
+FR-inclusion-examples,2,1,4,-3.5,8.5,4,0
+FR-inclusion-proof,2,2,5,-2.5,9.5,6,0
+FR-proof-a,5,3,5,0,8,5,0
+FR-proof-b,4,2,5,-2.5,9.5,5,0
+FR-proof-c,2,2,4,-1,7,4,0
+TFJ-contrapositive,3,3,3,3,3,3,3
+TFJ-prime-or-composite,3,1,3,-2,6,3,0
+TFJ-subset,3,2,3,0.5,4.5,3,1
+TFJ-vacuous,3,3,3,3,3,3,3

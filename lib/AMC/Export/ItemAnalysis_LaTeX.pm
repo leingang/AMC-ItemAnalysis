@@ -117,9 +117,11 @@ sub export {
         }        
     },
     question boxplot/.style={
-        y=0.25cm,
-        ytick=\empty,
-        axis x line=none,
+        y=0.33cm,
+        enlarge x limits,
+        xtick=\empty,ytick=\empty,
+        % draw the full axis but hide it
+        axis x line=bottom,x axis line style={draw=white},
         axis y line=none,
         every axis/.append style={
             anchor=xticklabel* cs:0},
@@ -227,14 +229,15 @@ sub export {
         print $fh  $q->{'difficulty_class'} , " & "; 
         print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
         print $fh  $q->{'discrimination_class'} , " & "; 
-        print $fh q(\tikz[baseline]{\begin{axis}[question boxplot]
-        \addplot+[boxplot prepared={);
+        print $fh sprintf "\\tikz[baseline]{\\begin{axis}[question boxplot,xmin=0,xmax=%0.1f]", 
+            $q->{'ceiling'};
+        print $fh q(\addplot+[boxplot prepared={);
         print $fh sprintf "lower whisker=%d, lower quartile=%0.1f, " 
             . "median=%0.1f, upper quartile=%0.1f, upper whisker=%d",
-                $q->{'min'}, $q->{'Q1'}, $q->{'median'},
-                $q->{'Q3'}, $q->{'max'};
+                $q->{'lower_extreme'}, $q->{'Q1'}, $q->{'median'},
+                $q->{'Q3'}, $q->{'upper_extreme'};
         print $fh q(}] coordinates {};
-\end{axis}}\\\\);
+\end{axis}}\\\\), "\n";
     }
     print $fh q(\end{longtable});
 
