@@ -86,10 +86,23 @@ sub export {
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.16}
 \usetikzlibrary{pgfplots.statistics}
+% colors
+\colorlet{correct}{green!50!black}
+\colorlet{incorrect}{red!50!white}
+\colorlet{submedian}{incorrect}
+\colorlet{supermedian}{blue!50!white}
 \tikzset{
     bar/.style={xscale=2,yscale=0.25,draw=black,fill=gray},
-    correct/.style={fill=green!50!black},
-    incorrect/.style={fill=red!50!white},
+    correct/.style={draw=black,fill=correct},
+    incorrect/.style={draw=black,fill=incorrect},
+}
+\pgfplotsset{
+    boxplot/.cd,
+        every lower box/.style={draw=submedian,fill=submedian},
+        every upper box/.style={draw=supermedian,fill=supermedian},
+        every lower whisker/.style={ultra thick,draw=submedian},
+        every upper whisker/.style={ultra thick,draw=supermedian},
+        every median/.style={black},
 }
 \pgfplotsset{
     main scatterplot/.style={
@@ -123,9 +136,34 @@ sub export {
         % draw the full axis but hide it
         axis x line=bottom,x axis line style={draw=white},
         axis y line=none,
-        every axis/.append style={
-            anchor=xticklabel* cs:0},
-    }
+        anchor={xticklabel* cs:0},
+        scatter,
+        visualization depends on={sqrt(\thisrow{freq}) \as \perpointmarksize},
+        point meta={x > \boxplotvalue{median}},
+        colormap={relativetomedian}{color=(incorrect) color=(correct)},
+        scatter/use mapped color={draw=mapped color,fill=mapped color},        
+        scatter/@pre marker code/.append style={/tikz/mark size=\perpointmarksize},
+        boxplot/draw/box/.code={
+            \draw [/pgfplots/boxplot/every box/.try,
+                   /pgfplots/boxplot/every lower box/.try]
+                (boxplot box cs:\pgfplotsboxplotvalue{lower quartile},0)
+                rectangle
+                (boxplot box cs:\pgfplotsboxplotvalue{median},1); 
+            \draw [/pgfplots/boxplot/every box/.try,
+                   /pgfplots/boxplot/every upper box/.try]
+                (boxplot box cs:\pgfplotsboxplotvalue{median},0)
+                rectangle
+                (boxplot box cs:\pgfplotsboxplotvalue{upper quartile},1); 
+        },
+        boxplot/draw/lower whisker/.code={
+            \draw[/pgfplots/boxplot/every lower whisker/.try] (boxplot cs:\pgfplotsboxplotvalue{lower whisker})
+              -- (boxplot cs:\pgfplotsboxplotvalue{lower quartile});
+        },
+        boxplot/draw/upper whisker/.code={
+            \draw[/pgfplots/boxplot/every upper whisker/.try] (boxplot cs:\pgfplotsboxplotvalue{upper quartile})
+              -- (boxplot cs:\pgfplotsboxplotvalue{upper whisker});
+        }
+    },
 }
 \usepackage{longtable}
 \usepackage{siunitx}
@@ -157,7 +195,7 @@ sub export {
 
 \section{Item statistics}
 
-\section{Fixed response questions}
+\subsection{Fixed response questions}
 
 \begin{longtable}{rSSrlSlcSSrSl}
 \hline
@@ -207,7 +245,7 @@ sub export {
 
     # print stats for each free response item:
     print $fh q(
-\subsection{Free response items}
+\subsection{Free response questions}
 
 \begin{longtable}{rSSrlSlc}
 \hline
@@ -236,8 +274,26 @@ sub export {
             . "median=%0.1f, upper quartile=%0.1f, upper whisker=%d",
                 $q->{'lower_extreme'}, $q->{'Q1'}, $q->{'median'},
                 $q->{'Q3'}, $q->{'upper_extreme'};
-        print $fh q(}] coordinates {};
-\end{axis}}\\\\), "\n";
+        print $fh q(}]);
+        if (scalar(@{$q->{'outliers'}} == 0)) {
+            print $fh q(coordinates {};);
+        }
+        else {
+            # build a frequency hash of the outliers
+            my %count;
+            foreach (@{$q->{'outliers'}}) {
+                $count{$_}++;
+            }
+            # serialize a table coordinate stream for pgfplots
+            # looks like:
+            #     table[y=y,row sep=\\,col sep=comma] {y,freq\\1,1\\2,3\\}; \end{axis}}}\\
+            print $fh q(table[y=y,row sep=\\\\,col sep=comma] {y,freq\\\\);
+            foreach (sort keys %count) {
+                print $fh sprintf "%0.1f,%d\\\\", $_, $count{$_};
+            }
+            print $fh q(};);
+        }
+        print $fh q(\end{axis}}\\\\), "\n";
     }
     print $fh q(\end{longtable});
 
