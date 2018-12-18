@@ -3,12 +3,24 @@ Support and Documentation
 =========================
 
 
+Online documentation
+--------------------
+
+See `AMC-ItemAnalysis at RTD.io
+<https://amc-itemanalysis.readthedocs.io/en/stable/index.html>`_ for online
+documentation.
+
+Documentation is built by `Sphinx <http://sphinx-doc.org>`_ and continuously
+integrated from the GitHub repository. 
+
+
 Locally-installed documentation
 -------------------------------
 
 After installing, you can find documentation for the modules with the
 :code:`perldoc` command.  You just have to look in the right place.  You can
-either add the plugin directory to perl's library path and search for the modules by their perl names, 
+either add the plugin directory to perl's library path and search for the
+modules by their perl names, 
 
 .. code-block:: console
 
@@ -19,14 +31,6 @@ or navigate straight to the `.pm` files.
 .. code-block:: console
 
      perldoc ~/.AMC.d/plugins/ItemAnalysis/perl/AMC/ItemAnalysis.pm
-
-
-Online documentation
---------------------
-
-.. note::
-
-     Coming soon!  Documentation built by Sphinx and continuously integrated at RTD.io.
 
 
 Building documentation from source
