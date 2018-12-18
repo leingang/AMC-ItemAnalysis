@@ -48,12 +48,14 @@ format.
 
 =head1 SUPPORT AND DOCUMENTATION
 
+Online documentation is available at L<ReadTheDocs|https://amc-itemanalysis.readthedocs.io/>
+
 After installing, you can find documentation for this module with the
 perldoc command.
 
     perldoc AMC::ItemAnalysis
 
-The module also supports the L<Sphinx|http://sphinx-doc.org> docmentation 
+The module also supports the L<Sphinx|https://sphinx-doc.org> docmentation 
 system (requires Python; see F<reqirements-doc.txt>). The C<librst> build
 action will create reST files from the module's POD documentation, and then
 the Sphinx documentation can be built.
