@@ -22,7 +22,11 @@ move the directory into your :code:`plugins` directory:
 From source
 -----------
 
-To install this module from source, run the following commands:
+The master source code repository is hosted on 
+`GitHub <https://github.com/leingang/AMC-ItemAnalysis`>.  You are welcome
+to clone it and install from source.
+
+After cloning, run the following commands:
 
 .. code-block:: console
 
