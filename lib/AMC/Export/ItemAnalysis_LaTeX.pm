@@ -140,7 +140,7 @@ sub export {
         scatter,
         visualization depends on={sqrt(\thisrow{freq}) \as \perpointmarksize},
         point meta={x > \boxplotvalue{median}},
-        colormap={relativetomedian}{color=(incorrect) color=(correct)},
+        colormap={relativetomedian}{color=(submedian) color=(supermedian)},
         scatter/use mapped color={draw=mapped color,fill=mapped color},        
         scatter/@pre marker code/.append style={/tikz/mark size=\perpointmarksize},
         boxplot/draw/box/.code={
