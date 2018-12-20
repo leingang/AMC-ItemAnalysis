@@ -23,8 +23,11 @@ use warnings;
 use Module::Build;
 use Software::License;
 
+use FindBin qw($RealBin);
+use lib $RealBin . "/lib";
+use AMC::Plugin::Build;
 
-my $class = Module::Build->subclass(code => q(
+my $class = AMC::Plugin::Build->subclass(code => q(
     # Subclass Module::Build to add a `librst` command that will generate
     # reStructuredText files from the project's POD documentation.   
     
