@@ -727,8 +727,8 @@ sub question_is_open {
     # won't work until the answers have been loaded, obvs.
     @answers = keys %{$q->{'responses'}};
     # print "answers: ", Dumper(\@answers);
-    @weights = sort map { $q->{'responses'}->{$_}->{'weight'} } @answers;
-    # print "weights: ", Dumper(\@weights);
+    @weights = sort {$a <=> $b} map { $q->{'responses'}->{$_}->{'weight'} } @answers;
+    # print $q->{'title'}, " weights: ", Dumper(\@weights);
     $i = 0;
     return reduce { $a && ($b == $i++) } 1, @weights; 
 }
