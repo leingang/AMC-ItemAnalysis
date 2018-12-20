@@ -52,8 +52,8 @@ Changed
 Fixed
 ~~~~~
 
-*  fixed a bug that caused free response problems with two-digit point
-      values to elude detection.
+* fixed a bug that caused free response problems with two-digit point
+  values to elude detection.
 
 
 Version 0.6, 2018-12-18
@@ -69,12 +69,12 @@ Removed
 Changed
 ~~~~~~~
 
-*  Improved detection of open (free response) questions.
+* Improved detection of open (free response) questions.
 
-*  Improved box plot for open questions, with fancier style and plotting
-      of outliers.
+* Improved box plot for open questions, with fancier style and plotting
+  of outliers.
 
-*  Various code improvements.
+* Various code improvements.
 
 
 Version 0.5, 2018-12-07
@@ -83,20 +83,20 @@ Version 0.5, 2018-12-07
 Added
 ~~~~~
 
-*  Open questions are now visualized with box-and-whisker plots instead of
-   bar charts.
+* Open questions are now visualized with box-and-whisker plots instead of
+  bar charts.
 
-*  Added documentation in Sphinx.
+* Added documentation in Sphinx.
 
 Changed
 ~~~~~~~
 
-*  Mild GUI improvements.  Namely, inoperative controls are removed.
+* Mild GUI improvements.  Namely, inoperative controls are removed.
 
 Fixed
 ~~~~~
 
-*  Various bugs and typos fixed.
+* Various bugs and typos fixed.
 
 
 Version 0.4, 2017-11-27
@@ -105,8 +105,8 @@ Version 0.4, 2017-11-27
 Changed
 ~~~~~~~
 
-*  Questions are now sorted by database order.  This should be pretty close
-   to catalog order.  Likely the most desired order.
+* Questions are now sorted by database order.  This should be pretty close
+  to catalog order.  Likely the most desired order.
 
 
 Version 0.3, 2018-11-25
@@ -115,12 +115,12 @@ Version 0.3, 2018-11-25
 Added
 ~~~~~
 
-*  Answer labels (A, B, C, ...) are now reported when available.
+* Answer labels (A, B, C, ...) are now reported when available.
 
 Changed
 ~~~~~~~
 
-*  Some code cleanup.
+* Some code cleanup.
 
 Version 0.2, 2018-11-22
 -----------------------
@@ -128,8 +128,8 @@ Version 0.2, 2018-11-22
 Changed
 ~~~~~~~
 
-*  Code refactoring to include separate export modules for separate
-      formats.
+* Code refactoring to include separate export modules for separate
+  formats.
 
 
 Version 0.1, 2018-11-16
