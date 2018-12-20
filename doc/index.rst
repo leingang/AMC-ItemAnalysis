@@ -11,9 +11,10 @@ Contents:
    :maxdepth: 2
 
    about
-   install
-   usage
+   Installation <install>
+   Usage <usage>
    support
+   Change Log <changes>
    license
 
 Indices and tables
