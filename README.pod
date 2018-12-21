@@ -48,7 +48,7 @@ format.
 
 =head1 SUPPORT AND DOCUMENTATION
 
-Online documentation is available at L<ReadTheDocs|https://amc-itemanalysis.readthedocs.io/>
+Online documentation is available at L<ReadTheDocs|https://amc-itemanalysis.readthedocs.io/>.
 
 After installing, you can find documentation for this module with the
 perldoc command.
