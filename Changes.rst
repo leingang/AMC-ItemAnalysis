@@ -45,7 +45,7 @@ Unreleased Changes
 Changed
 ~~~~~~~
 
-* Change log is now formatted in ReSructured Test.
+* Change log is now formatted in ReStructured Text.
 
 * Change log is now included in Sphinx docs.
 
