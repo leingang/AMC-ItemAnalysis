@@ -98,7 +98,19 @@ sub ACTION_plugin {
     # foreach my $type ( qw(bin lib) ) {
     #     $self->htmlify_pods( $type, File::Spec->catdir($ppm, 'blib', 'html') );
     # }
- 
+
+    # copy in any READMEs
+    my $files = $self->rscan_dir('.','README');
+    my $dir = '.';
+    foreach my $file ( @$files ) {
+        next unless -f $file;
+        my $rel_file =
+            File::Spec->abs2rel( File::Spec->rel2abs( $file ),
+                                File::Spec->rel2abs( $dir  ) );
+                my $to_file = File::Spec->catfile($plugin_dir,$file);
+        $self->copy_if_modified( from => $file, to => $to_file );
+    }
+
     $self->make_tarball( $plugin_dir, $plugin_name);
 
     $self->delete_filetree( $plugin_dir );    

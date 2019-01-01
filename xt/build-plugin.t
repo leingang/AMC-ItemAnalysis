@@ -27,8 +27,11 @@ use warnings;
 use Test::More;
 use File::Spec;
 use File::Temp;
+use Archive::Tar;
 
 use AMC::Plugin::Build;
+
+plan tests => 6;
 
 my $build_foo = AMC::Plugin::Build->new(
     module_name => 'AMC::ItemAnalysis',
@@ -42,19 +45,34 @@ is ($build->plugin_name,'ItemAnalysis','plugin_name defaults correctly');
 # my $temp_dir = File::Temp->newdir(CLEANUP=>0);
 my $tarball_path = File::Spec->catdir($build->plugin_name . ".tar.gz");
 
+# This routine has no return value so can't test for success
 $build->dispatch("build");
-# No return value for this action, so can't use is() 
-# ok($build->_do_in_dir($temp_dir,
-#     sub {
-#         $build->dispatch("plugin")
-#             or die "Error building plugin in in directory '$temp_dir': $!";
-#     }
-# ));
 
-$build->dispatch("plugin") or die "Error building plugin: $!";
-is(-f $tarball_path,1,"Tarball exists: $tarball_path");
+$build->dispatch("plugin") or die "Error building 'plugin': $!";
 
+# Check if the tarball exists
+is(-f $tarball_path,1,"Tarball exists: $tarball_path")
+    or die "$!";
 
-done_testing();
+# Check if the tarball is a tarball
+isa_ok(my $tar = Archive::Tar->new($tarball_path,1),'Archive::Tar')
+    or die "$!";
+
+# Check if the tarball has the files that we expect it to.
+# Not sure how to encode this to make it 
+# (a) thorough 
+# (b) not rely on hardcoded file names
+# (c) not self-referential i.e., GIGO-proof
+# So right now we just look for one directory 'perl'
+# and a README
+my @files = $tar->list_files;
+my @needs = (File::Spec->catfile($build->plugin_name,'perl'));
+foreach (@needs) {
+    my $needed = $_;
+    is(grep(/^$needed$/, @files),1,"Tarball contains $needed");
+}
+
+is(grep(/README/, @files),1,"Tarball contains a README");
+
 
 
