@@ -9,7 +9,7 @@ Matthew Leingang <leingang@nyu.edu>
 
 =cut
 #
-# opyright (C) 2018-19 Matthew Leingang <leingang@nyu.edu>
+# Copyright (C) 2018-19 Matthew Leingang <leingang@nyu.edu>
 #
 # This file is part of AMC-ItemAnalysis
 #

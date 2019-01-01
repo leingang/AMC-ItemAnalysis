@@ -1,5 +1,5 @@
 
-# Copyright (C) 2018 Matthew Leingang <leingang@nyu.edu>
+# Copyright (C) 2018-19 Matthew Leingang <leingang@nyu.edu>
 #
 # This file is part of AMC-ItemAnalysis
 #
@@ -40,14 +40,39 @@ AMC::Plugin::Build - Prepare an auto-multiple-choice plugin from source
     perl Build.PL
     ./Build
     ./Build test
-    ./Build dist
+    ./Build plugin
 
 The compressed tarball can now be imported into AMC.
 
 =head1 SUBROUTINES/METHODS
 
-Same as in the parent.
+=head2 plugin
 
+Create a tarball that can be installed as an AMC.  
+See L<https://github.com/leingang/AMC-ItemAnalysis/issues/12>.
+
+Based on the C<ACTION_ppmdist> subroutine from
+L<Module::Build::Base>.
+
+=cut
+
+sub plugin_name {
+    my $self = shift;
+    my $properties = $self->{'properties'};
+    if (my $plugin_name = $properties->{'plugin_name'}) {
+        return $plugin_name;
+    }
+    elsif (my $module_name = $self->module_name) {
+        my @parts = split /::/, $module_name;
+        return pop @parts;
+    }
+}
+
+sub ACTION_plugin {
+    my $self = shift;
+    my $plugin_name = $self->plugin_name;
+
+}
 
 =head1 AUTHOR
 
@@ -60,7 +85,7 @@ Look at the submodules.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2018 Matthew Leingang
+Copyright (C) 2018-19 Matthew Leingang
 
 AMC-ItemAnalysis is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free
