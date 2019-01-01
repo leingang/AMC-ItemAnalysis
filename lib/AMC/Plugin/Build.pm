@@ -71,7 +71,10 @@ sub plugin_name {
 sub ACTION_plugin {
     my $self = shift;
     my $plugin_name = $self->plugin_name;
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 }
 
 =head1 AUTHOR
