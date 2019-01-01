@@ -42,8 +42,19 @@ for the next release.
 Unreleased Changes
 ------------------
 
+Added
+~~~~~
+
+* An action to the build script generates the plugin tarball.
+
+* Documentation is now automatically generated at ReadTheDocs_.
+
+.. _ReadTheDocs: https://amc-itemanalysis.readthedocs.io/
+
 Changed
 ~~~~~~~
+
+* Updated copyright year to current year (2019)
 
 * Change log is now formatted in ReStructured Text.
 
@@ -54,6 +65,8 @@ Fixed
 
 * fixed a bug that caused free response problems with two-digit point
   values to elude detection.
+
+* fixed various typos
 
 
 Version 0.6, 2018-12-18
