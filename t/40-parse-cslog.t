@@ -19,7 +19,7 @@ L<https://github.com/leingang/AMC-ItemAnalysis/issues/2>
 
 =cut
 #
-# Copyright (C) 2018 Matthew Leingang <leingang@nyu.edu>
+# opyright (C) 2018-19 Matthew Leingang <leingang@nyu.edu>
 #
 # This file is part of AMC-ItemAnalysis
 #

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2018 Matthew Leingang <leingang@nyu.edu>
+# opyright (C) 2018-19 Matthew Leingang <leingang@nyu.edu>
 #
 # This file is part of AMC-ItemAnalysis
 #
@@ -376,7 +376,7 @@ Matthew Leingang, C<< <leingang@nyu.edu> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2018 Matthew Leingang
+opyright (C) 2018-19 Matthew Leingang
 
 AMC-ItemAnalysis is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free

@@ -49,7 +49,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'AMC-ItemAnalysis'
-copyright = u'2018, Matthew Leingang'
+copyright = u'2018-19, Matthew Leingang'
 author = u'Matthew Leingang'
 
 # The version info for the project you're documenting, acts as replacement for
