@@ -82,10 +82,17 @@ my $builder = $class->new(
         # need subclass() method and license declaration by Software::License subclass
         'Module::Build' => 0.36_14,  
     },
+    # nifty one-liner to search test files for modules used: 
+    # egrep -h "^use " t/*.t xt/*.t | cut -f 2 -d' ' | sort | uniq
     test_requires      => {
         'perl' => '!= 5.6.0, != 5.6.1, != 5.6.2', # Text::CSV::header does not work in perl-5.6.x (says POD)
+        'File::Spec' => 0,
+        'File::Temp' => 0,
+        'FindBin' => 0,
+        'Test::More' => 0,
         'Text::CSV' => 0,
         'Data::Dumper' => 0,
+        'Archive::Tar' => 0, 
         'List::Util' => 0 # Needs max
     },
     requires => {
