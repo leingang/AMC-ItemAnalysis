@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License along
 # with AMC-ItemAnalysis.  If not, see <https://www.gnu.org/licenses/>.
+
 =pod
 
 =encoding utf8
@@ -53,8 +54,8 @@ of this class.
 
 sub new {
     my $class = shift;
-    my $self = {};
-    bless ($self, $class);
+    my $self  = {};
+    bless( $self, $class );
     return $self;
 }
 
@@ -80,16 +81,16 @@ C<answer_label>.
 =cut
 
 sub parse {
-    my ($self,$file_name) = @_;
-    open my ($fh, "<", "$file_name") or die "Could not open $file_name: $!";
+    my ( $self, $file_name ) = @_;
+    open my ( $fh, "<", "$file_name" ) or die "Could not open $file_name: $!";
     my $result = [];
     while (<$fh>) {
         $_ =~ /case:([^:]*):(\d+),(\d+)\}\{(.*)\}$/;
         my $rec = {
-            'question_name' => $1,
+            'question_name'   => $1,
             'question_number' => $2,
-            'answer_number' => $3,
-            'answer_label' => $4
+            'answer_number'   => $3,
+            'answer_label'    => $4
         };
         push @$result, $rec;
     }
