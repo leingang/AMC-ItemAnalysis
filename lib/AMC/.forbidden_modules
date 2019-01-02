@@ -1,0 +1,2 @@
+Switch           Use if, elsif instead of the deprecated Switch module
+Fatal            Use autodie instead of Fatal
