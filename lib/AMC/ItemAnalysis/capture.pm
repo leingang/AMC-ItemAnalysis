@@ -9,12 +9,17 @@ AMC::ItemAnalysis::capture - Add methods to AMC::DataModule::capture
 
 =cut
 
+## no critic (Capitalization)
+# Following the AMC distribution's conventions
 package AMC::ItemAnalysis::capture;
+## use critic
 
 # use strict;
 use warnings;
 use parent q(AMC::DataModule::capture);
 use Data::Dumper;    # for debugging
+
+my $EMPTY = q{};
 
 =head1 METHOD
 
@@ -53,7 +58,7 @@ sub question_response {
 
     # print "question_response: \$dt:", $dt, "\n";
     # print "question_response: \$dtu:", $dtu, "\n";
-    my $t  = '';
+    my $t  = $EMPTY;
     my @tl = $self->ticked_list( $student, $copy, $question, $dt, $dtu );
 
     # print "question_response: \@tl:", Dumper(\@tl), "\n";
@@ -78,12 +83,12 @@ sub _i_to_a {
         return ('0');
     }
     else {
-        my $s = '';
+        my $s = $EMPTY;
         while ( $i > 0 ) {
             $s = chr( ord('a') + ( ( $i - 1 ) % 26 ) ) . $s;
             $i = int( ( $i - 1 ) / 26 );
         }
-        $s =~ s/^([a-z])/uc($1)/e;
+        $s =~ s/^([[a-z]])/uc($1)/e;
         return ($s);
     }
 }
