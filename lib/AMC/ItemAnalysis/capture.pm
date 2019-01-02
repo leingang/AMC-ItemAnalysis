@@ -1,3 +1,4 @@
+
 =pod
 
 =encoding utf8
@@ -11,7 +12,7 @@ AMC::ItemAnalysis::capture - Add methods to AMC::DataModule::capture
 package AMC::ItemAnalysis::capture;
 
 use parent q(AMC::DataModule::capture);
-use Data::Dumper;# for debugging
+use Data::Dumper;    # for debugging
 
 =head1 METHOD
 
@@ -38,46 +39,51 @@ answers 1 and 3, 'AC' will be the returned.
 =cut
 
 sub question_response {
+
     # print "question_response: BEGIN\n";
-    my ($self,$student,$copy,$question)=@_;
+    my ( $self, $student, $copy, $question ) = @_;
+
     # print "question_response: \$student:", $student, "\n";
     # print "question_response: \$copy:", $copy, "\n";
     # print "question_response: \$question:", Dumper($question), "\n";
-    my $dt = $self->{'darkness_threshold'};
+    my $dt  = $self->{'darkness_threshold'};
     my $dtu = $self->{'darkness_threshold_up'};
+
     # print "question_response: \$dt:", $dt, "\n";
     # print "question_response: \$dtu:", $dtu, "\n";
-    my $t='';
-    my @tl=$self->ticked_list($student,$copy,$question,$dt,$dtu);
+    my $t  = '';
+    my @tl = $self->ticked_list( $student, $copy, $question, $dt, $dtu );
+
     # print "question_response: \@tl:", Dumper(\@tl), "\n";
-    if($self->has_answer_zero(@$student,$copy,$question)) {
-        if(shift @tl) {
-            $t.='0';
+    if ( $self->has_answer_zero( @$student, $copy, $question ) ) {
+        if ( shift @tl ) {
+            $t .= '0';
         }
     }
-    for my $i (0..$#tl) {
-        $t .= $self->_i_to_a($i+1) if($tl[$i]);
+    for my $i ( 0 .. $#tl ) {
+        $t .= $self->_i_to_a( $i + 1 ) if ( $tl[$i] );
     }
+
     # print "question_response: END. \$t=", $t, "\n";
     return $t;
 }
 
-
 # convert number to letter
 # stolen from AMC::Export::CSV
 sub _i_to_a {
-  my ($self,$i)=@_;
-  if($i==0) {
-    return('0');
-  } else {
-    my $s='';
-    while($i>0) {
-      $s = chr(ord('a')+(($i-1) % 26)) . $s;
-      $i = int(($i-1)/26);
+    my ( $self, $i ) = @_;
+    if ( $i == 0 ) {
+        return ('0');
     }
-    $s =~ s/^([a-z])/uc($1)/e;
-    return($s);
-  }
+    else {
+        my $s = '';
+        while ( $i > 0 ) {
+            $s = chr( ord('a') + ( ( $i - 1 ) % 26 ) ) . $s;
+            $i = int( ( $i - 1 ) / 26 );
+        }
+        $s =~ s/^([a-z])/uc($1)/e;
+        return ($s);
+    }
 }
 
 1;

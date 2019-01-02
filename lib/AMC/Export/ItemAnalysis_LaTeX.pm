@@ -61,19 +61,22 @@ is the name of the output file to write to.
 
 =cut
 
-sub export {    
-    my ($self,$fichier)=@_;
+sub export {
+    my ( $self, $fichier ) = @_;
     $self->analyze();
-    open(my $fh, '>', $fichier) or die "Could not open file '$fichier' $!";
+    open( my $fh, '>', $fichier ) or die "Could not open file '$fichier' $!";
+
     # Sort by question ID number.  I guess this is pretty close to the
     # order they appear in the source file.
-    @questions_sorted = sort { $a->{'question'} <=> $b->{'question'} } @{$self->{'questions'}};
+    @questions_sorted =
+      sort { $a->{'question'} <=> $b->{'question'} } @{ $self->{'questions'} };
     $self->{'questions'} = \@questions_sorted;
+
     # preamble to table first row
     # We use single quote here so we don't have to escape all the backslashes.
     $exam_name = $self->{'metadata'}->{'title'};
-    $doc_title = ($exam_name ? $exam_name . ' ' : '' ) . 'Item Analysis';
-    print $fh  sprintf q(
+    $doc_title = ( $exam_name ? $exam_name . ' ' : '' ) . 'Item Analysis';
+    print $fh sprintf q(
 \documentclass{article}
 );
     print $fh "\\title{${doc_title}}\n";
@@ -178,18 +181,20 @@ sub export {
 
     # print a problem metadata table
     print $fh q(\begin{tabular}{rrc}), "\n";
+    print $fh q(\hline),               "\n";
+    print $fh
+      q(\bfseries Item number & \bfseries Item name & \bfseries Item type),
+      '\\\\', "\n";
     print $fh q(\hline), "\n";
-    print $fh q(\bfseries Item number & \bfseries Item name & \bfseries Item type), '\\\\', "\n";
-    print $fh q(\hline), "\n";
-    for my $i (0 .. $#{$self->{'questions'}}) {
+    for my $i ( 0 .. $#{ $self->{'questions'} } ) {
         $q = $self->{'questions'}->[$i];
-        print $fh $i+1, " & ";
+        print $fh $i + 1, " & ";
         print $fh $q->{'title'}, " & ";
         print $fh $q->{'type_class'};
-        print $fh '\\\\', "\n"; 
+        print $fh '\\\\', "\n";
     }
     print $fh q(\end{tabular}), "\n";
-    
+
     # print the main table
     print $fh q(
 
@@ -211,35 +216,42 @@ sub export {
 & \bfseries Distribution \\\\
 \hline\endhead
 );
+
     # print stats for each multiple choice item:
-    for my $i (0 .. $#{$self->{'questions'}}) {
+    for my $i ( 0 .. $#{ $self->{'questions'} } ) {
         $q = $self->{'questions'}->[$i];
-        next if ($q->{'type_class'} eq 'FR');
-        print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
-        print $fh  sprintf ("%.2f", $q->{'mean'}), " & ";
-        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " & ";
-        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " & ";
-        print $fh  $q->{'difficulty_class'} , " & "; 
-        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
-        print $fh  $q->{'discrimination_class'} , " & "; 
+        next if ( $q->{'type_class'} eq 'FR' );
+        print $fh $i + 1, " & ";    # was $q->{'title'} but that's too long
+        print $fh sprintf( "%.2f", $q->{'mean'} ), " & ";
+        print $fh sprintf( "%.2f", $q->{'standard_deviation'} ), " & ";
+        print $fh sprintf( "%3d", $q->{'difficulty'} * 100 ), " & ";
+        print $fh $q->{'difficulty_class'}, " & ";
+        print $fh sprintf( "%.2f", $q->{'discrimination'} ), " & ";
+        print $fh $q->{'discrimination_class'}, " & ";
         my $row = 0;
-        @answers = sort keys (%{$q->{'responses'}});
+        @answers = sort keys( %{ $q->{'responses'} } );
+
         for my $k (@answers) {
             $a = $q->{'responses'}->{$k};
-            if ($row++) {
+            if ( $row++ ) {
                 print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
             }
-            $label = (defined($a->{'label'}) ? $a->{'label'} : $k);
+            $label = ( defined( $a->{'label'} ) ? $a->{'label'} : $k );
             print $fh $label, " & ";
-            print $fh sprintf("%.2f", $a->{'weight'}), " & ";
-            print $fh sprintf("%.2f", $a->{'mean'}), " & ";
+            print $fh sprintf( "%.2f", $a->{'weight'} ), " & ";
+            print $fh sprintf( "%.2f", $a->{'mean'} ),   " & ";
             print $fh $a->{'count'}, " & ";
-            print $fh sprintf("\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100), " & ";
+            print $fh
+              sprintf( "\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100 ),
+              " & ";
             $bar_key = $a->{'correct'} ? "correct" : "incorrect";
-            print $fh sprintf("\\tikz{\\draw[bar,$bar_key] (0,0) rectangle (%.2f,1);}", $a->{'frequency'});
+            print $fh
+              sprintf( "\\tikz{\\draw[bar,$bar_key] (0,0) rectangle (%.2f,1);}",
+                $a->{'frequency'} );
         }
         print $fh '\\\\[\itemsep]', "\n";
     }
+
     # end of item table
     print $fh q(\end{longtable}), "\n\n";
 
@@ -257,38 +269,41 @@ sub export {
 & \bfseries Distribution
 \\\\\hline\endhead
     );
-    for my $i (0 .. $#{$self->{'questions'}}) {
+    for my $i ( 0 .. $#{ $self->{'questions'} } ) {
         $q = $self->{'questions'}->[$i];
-        next unless ($q->{'type_class'} eq 'FR');
-        print $fh  $i+1, " & "; # was $q->{'title'} but that's too long
-        print $fh  sprintf ("%.2f", $q->{'mean'}), " & ";
-        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " & ";
-        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " & ";
-        print $fh  $q->{'difficulty_class'} , " & "; 
-        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " & ";
-        print $fh  $q->{'discrimination_class'} , " & "; 
-        print $fh sprintf "\\tikz[baseline]{\\begin{axis}[question boxplot,xmin=0,xmax=%0.1f]", 
-            $q->{'ceiling'};
+        next unless ( $q->{'type_class'} eq 'FR' );
+        print $fh $i + 1, " & ";    # was $q->{'title'} but that's too long
+        print $fh sprintf( "%.2f", $q->{'mean'} ), " & ";
+        print $fh sprintf( "%.2f", $q->{'standard_deviation'} ), " & ";
+        print $fh sprintf( "%3d", $q->{'difficulty'} * 100 ), " & ";
+        print $fh $q->{'difficulty_class'}, " & ";
+        print $fh sprintf( "%.2f", $q->{'discrimination'} ), " & ";
+        print $fh $q->{'discrimination_class'}, " & ";
+        print $fh sprintf
+          "\\tikz[baseline]{\\begin{axis}[question boxplot,xmin=0,xmax=%0.1f]",
+          $q->{'ceiling'};
         print $fh q(\addplot+[boxplot prepared={);
-        print $fh sprintf "lower whisker=%d, lower quartile=%0.1f, " 
-            . "median=%0.1f, upper quartile=%0.1f, upper whisker=%d",
-                $q->{'lower_extreme'}, $q->{'Q1'}, $q->{'median'},
-                $q->{'Q3'}, $q->{'upper_extreme'};
+        print $fh sprintf "lower whisker=%d, lower quartile=%0.1f, "
+          . "median=%0.1f, upper quartile=%0.1f, upper whisker=%d",
+          $q->{'lower_extreme'}, $q->{'Q1'}, $q->{'median'},
+          $q->{'Q3'}, $q->{'upper_extreme'};
         print $fh q(}]);
-        if (scalar(@{$q->{'outliers'}} == 0)) {
+
+        if ( scalar( @{ $q->{'outliers'} } == 0 ) ) {
             print $fh q(coordinates {};);
         }
         else {
             # build a frequency hash of the outliers
             my %count;
-            foreach (@{$q->{'outliers'}}) {
+            foreach ( @{ $q->{'outliers'} } ) {
                 $count{$_}++;
             }
-            # serialize a table coordinate stream for pgfplots
-            # looks like:
-            #     table[y=y,row sep=\\,col sep=comma] {y,freq\\1,1\\2,3\\}; \end{axis}}}\\
+
+  # serialize a table coordinate stream for pgfplots
+  # looks like:
+  #     table[y=y,row sep=\\,col sep=comma] {y,freq\\1,1\\2,3\\}; \end{axis}}}\\
             print $fh q(table[y=y,row sep=\\\\,col sep=comma] {y,freq\\\\);
-            foreach (sort keys %count) {
+            foreach ( sort keys %count ) {
                 print $fh sprintf "%0.1f,%d\\\\", $_, $count{$_};
             }
             print $fh q(};);
@@ -296,7 +311,6 @@ sub export {
         print $fh q(\end{axis}}\\\\), "\n";
     }
     print $fh q(\end{longtable});
-
 
     # print the scatterplot
     print $fh q(
@@ -308,15 +322,15 @@ sub export {
         \addplot table [x=diff,y=disc] {  
 );
     print $fh "item mean sd diff diffc disc discc\n";
-    for my $i (0 .. $#{$self->{'questions'}}) {
+    for my $i ( 0 .. $#{ $self->{'questions'} } ) {
         $q = $self->{'questions'}->[$i];
-        print $fh  $i+1, " "; # was $q->{'title'} but that's too long
-        print $fh  sprintf ("%.2f", $q->{'mean'}), " ";
-        print $fh  sprintf ("%.2f", $q->{'standard_deviation'}), " ";
-        print $fh  sprintf ("%3d", $q->{'difficulty'} * 100), " ";
-        print $fh  $q->{'difficulty_class'} , " "; 
-        print $fh  sprintf ("%.2f", $q->{'discrimination'}), " ";
-        print $fh  $q->{'discrimination_class'} , "\n";
+        print $fh $i + 1, " ";    # was $q->{'title'} but that's too long
+        print $fh sprintf( "%.2f", $q->{'mean'} ), " ";
+        print $fh sprintf( "%.2f", $q->{'standard_deviation'} ), " ";
+        print $fh sprintf( "%3d", $q->{'difficulty'} * 100 ), " ";
+        print $fh $q->{'difficulty_class'}, " ";
+        print $fh sprintf( "%.2f", $q->{'discrimination'} ), " ";
+        print $fh $q->{'discrimination_class'}, "\n";
     }
     print $fh q(
         };
@@ -330,9 +344,10 @@ sub export {
 \section{Reliability}
 
 );
-    print $fh "Cronbach's \$\\alpha\$: ", sprintf("%.2f",$self->{'summary'}->{'alpha'}), "\n";
+    print $fh "Cronbach's \$\\alpha\$: ",
+      sprintf( "%.2f", $self->{'summary'}->{'alpha'} ), "\n";
     print $fh q(\end{document}), "\n";
-    close $fh;       
+    close $fh;
 }
 
 1;

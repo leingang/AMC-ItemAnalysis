@@ -66,15 +66,15 @@ hashrefs populated by C<< $obj->analyze() >>.
 
 =cut
 
-sub export {    
-    my ($self,$fichier)=@_;
-    $self->analyze();    
+sub export {
+    my ( $self, $fichier ) = @_;
+    $self->analyze();
     my $data = {
-        'metadata' => $self->{'metadata'},
-        'summary' => $self->{'summary'},
-        'items' => $self->{'questions'},
+        'metadata'    => $self->{'metadata'},
+        'summary'     => $self->{'summary'},
+        'items'       => $self->{'questions'},
         'submissions' => $self->{'submissions'},
-        'totals' => $self->{'marks'}
+        'totals'      => $self->{'marks'}
     };
     my $yaml = YAML::Tiny->new($data);
     $yaml->write($fichier);

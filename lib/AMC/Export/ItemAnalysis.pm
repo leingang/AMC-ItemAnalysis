@@ -42,7 +42,7 @@ use Storable q(dclone);
 
 use parent q(AMC::Export);
 
-use Data::Dumper;# for debugging
+use Data::Dumper;    # for debugging
 
 =head1 METHODS
 
@@ -53,23 +53,24 @@ Create the object.
 No arguments.  Returns a reference.
 
 =cut
+
 sub new {
+
     # print "new: BEGIN\n";
     my $class = shift;
     my $self  = $class->SUPER::new();
-    $self->{'out.nom'}="";
-    $self->{'out.code'}="";
-    $self->{'out.encodage'}='utf-8';
-    $self->{'out.separateur'}=",";
-    $self->{'out.decimal'}=",";
-    $self->{'out.entoure'}="\"";
-    $self->{'out.ticked'}="";
-    $self->{'out.columns'}='student.copy,student.key,student.name';
-    $self->{'noms.useall'}=0;
-    bless ($self, $class);
+    $self->{'out.nom'}        = "";
+    $self->{'out.code'}       = "";
+    $self->{'out.encodage'}   = 'utf-8';
+    $self->{'out.separateur'} = ",";
+    $self->{'out.decimal'}    = ",";
+    $self->{'out.entoure'}    = "\"";
+    $self->{'out.ticked'}     = "";
+    $self->{'out.columns'}    = 'student.copy,student.key,student.name';
+    $self->{'noms.useall'}    = 0;
+    bless( $self, $class );
     return $self;
 }
-
 
 =head2 analyze
 
@@ -169,85 +170,96 @@ about the exam itself.
 =back
 
 =cut
+
 sub analyze {
     my ($self) = @_;
     $self->pre_process();
-    # analyze the total     
-    $marks = $self->{'marks'};
-    @totals = map {$_->{'mark'}} @$marks;
-    $total_stats = Statistics::Descriptive::Full->new();
+
+    # analyze the total
+    $marks                        = $self->{'marks'};
+    @totals                       = map { $_->{'mark'} } @$marks;
+    $total_stats                  = Statistics::Descriptive::Full->new();
     $self->{'_debug.total_stats'} = $total_stats;
-    $self->{'_debug.totals'} = \@totals;
+    $self->{'_debug.totals'}      = \@totals;
     $total_stats->add_data(@totals);
     $summary = $self->{'summary'};
-    compute_summary_statistics($total_stats,$summary);
+    compute_summary_statistics( $total_stats, $summary );
 
     # analyze each question
     $question_stats = Statistics::Descriptive::Full->new();
-    for my $question (@{$self->{'questions'}}) {        
-        $title = $question->{'title'};
+    for my $question ( @{ $self->{'questions'} } ) {
+        $title  = $question->{'title'};
         $number = $question->{'question'};
-        @question_scores = map {$_->{$title}->{'score'}} @{$self->{'submissions'}};
-        $self->{'_debug.' . $title . '.scores'} = \@question_scores;
+        @question_scores =
+          map { $_->{$title}->{'score'} } @{ $self->{'submissions'} };
+        $self->{ '_debug.' . $title . '.scores' } = \@question_scores;
+
         # print "DEBUG: question_scores: ", join(",",@question_scores), "\n";
         $question_stats->clear();
         $question_stats->add_data(@question_scores);
-        # Compute correlation of this item with the total.
-        my ($b, $a, $r, $rms) = $question_stats->least_squares_fit(@totals);
-        $question->{'discrimination'} = $r;
-        $question->{'discrimination_class'} = classify_discrimination($question);
-        compute_summary_statistics($question_stats,$question);        
-        if ($question->{'ceiling'} != 0) {
-            $question->{'difficulty'} = $question->{'mean'} / $question->{'ceiling'};
-            $question->{'difficulty_class'} = classify_difficulty($question);
-	    }
 
-        # create the response hash
-        # We do this by sorting the reponses by the answers and collecting the total scores.
-        # there might be a map / filter / accumulate way to do this,
-        # but remember that the scoring_base may depend on the question *and* the student.
+        # Compute correlation of this item with the total.
+        my ( $b, $a, $r, $rms ) = $question_stats->least_squares_fit(@totals);
+        $question->{'discrimination'} = $r;
+        $question->{'discrimination_class'} =
+          classify_discrimination($question);
+        compute_summary_statistics( $question_stats, $question );
+        if ( $question->{'ceiling'} != 0 ) {
+            $question->{'difficulty'} =
+              $question->{'mean'} / $question->{'ceiling'};
+            $question->{'difficulty_class'} = classify_difficulty($question);
+        }
+
+# create the response hash
+# We do this by sorting the reponses by the answers and collecting the total scores.
+# there might be a map / filter / accumulate way to do this,
+# but remember that the scoring_base may depend on the question *and* the student.
         $responses = $question->{'responses'} = {};
-        # the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
-        # Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
-        $total_by_response = {};   
-        $weight_by_response = {}; 
-        for my $i (0 .. $#{$self->{'submissions'}}) {
-            $submission = $self->{'submissions'}->[$i];    
-            $response = $submission->{$title};
-            $sb = $response->{'scoring_base'};
-            for my $answer (@{$sb->{'answers'}}) {
-                $an = $answer->{'answer'}; # answer number
-                unless (defined $responses->{$an}) {
-                    $responses->{$an} = {};
+
+# the next two lines iterate $response over @{$self->{'submissions'}} but with an index $i.
+# Maybe there's a better way. See https://stackoverflow.com/a/974819/297797
+        $total_by_response  = {};
+        $weight_by_response = {};
+        for my $i ( 0 .. $#{ $self->{'submissions'} } ) {
+            $submission = $self->{'submissions'}->[$i];
+            $response   = $submission->{$title};
+            $sb         = $response->{'scoring_base'};
+            for my $answer ( @{ $sb->{'answers'} } ) {
+                $an = $answer->{'answer'};    # answer number
+                unless ( defined $responses->{$an} ) {
+                    $responses->{$an}              = {};
                     $responses->{$an}->{'correct'} = $answer->{'correct'};
-                    $total_by_response->{$an} = [];
-                    $weight_by_response->{$an} = [];
+                    $total_by_response->{$an}      = [];
+                    $weight_by_response->{$an}     = [];
                 }
-                push @{$weight_by_response->{$an}}, $answer->{'weight'};
-                if ($answer->{'ticked'}) {
-                    push @{$total_by_response->{$an}}, $marks->[$i]->{'mark'};
+                push @{ $weight_by_response->{$an} }, $answer->{'weight'};
+                if ( $answer->{'ticked'} ) {
+                    push @{ $total_by_response->{$an} }, $marks->[$i]->{'mark'};
                 }
             }
         }
-        $total_by_response_stats = Statistics::Descriptive::Sparse->new;
+        $total_by_response_stats  = Statistics::Descriptive::Sparse->new;
         $weight_by_response_stats = Statistics::Descriptive::Full->new;
-        for my $an (keys %{$responses}) {
+        for my $an ( keys %{$responses} ) {
             $total_by_response_stats->clear;
-            $total_by_response_stats->add_data(@{$total_by_response->{$an}});
-            $responses->{$an}->{'mean'} = $total_by_response_stats->mean;
+            $total_by_response_stats->add_data(
+                @{ $total_by_response->{$an} } );
+            $responses->{$an}->{'mean'}  = $total_by_response_stats->mean;
             $responses->{$an}->{'count'} = $total_by_response_stats->count;
             $responses->{$an}->{'frequency'} =
-                $total_by_response_stats->count / $self->{'summary'}->{'count'};
+              $total_by_response_stats->count / $self->{'summary'}->{'count'};
             $weight_by_response_stats->clear;
-            $weight_by_response_stats->add_data(@{$weight_by_response->{$an}});
-            # You would think that $weight_by_response->{$an} would be a constant
-            # array, but see the note above referring to Issue #2
-            # <https://github.com/leingang/AMC-ItemAnalysis/issues/2>
-            # We use the median to get the most expected answer for the answer's 
-            # weight (independent of student).  Mode might also be an option,
-            # but I don't know of a test where it would succeed and median wouldn't.            
+            $weight_by_response_stats->add_data(
+                @{ $weight_by_response->{$an} } );
+
+        # You would think that $weight_by_response->{$an} would be a constant
+        # array, but see the note above referring to Issue #2
+        # <https://github.com/leingang/AMC-ItemAnalysis/issues/2>
+        # We use the median to get the most expected answer for the answer's
+        # weight (independent of student).  Mode might also be an option,
+        # but I don't know of a test where it would succeed and median wouldn't.
             $responses->{$an}->{'weight'} = $weight_by_response_stats->median;
-        }        
+        }
         $question->{'type_class'} = $self->classify_type($question);
     }
     $self->{'summary'}->{'alpha'} = $self->alpha();
@@ -264,21 +276,21 @@ get called by the GUI.  But in case you want a dump (from L<Data::Dumper>)
 of the data in a file, here it is.
 
 =cut 
-sub export {    
-    my ($self,$fichier)=@_;
+
+sub export {
+    my ( $self, $fichier ) = @_;
     $self->analyze();
     my $data = {
-        'metadata' => $self->{'metadata'},
-        'summary' => $self->{'summary'},
-        'items' => $self->{'questions'},
+        'metadata'    => $self->{'metadata'},
+        'summary'     => $self->{'summary'},
+        'items'       => $self->{'questions'},
         'submissions' => $self->{'submissions'},
-        'totals' => $self->{'marks'}
+        'totals'      => $self->{'marks'}
     };
-    open(OUT,">:encoding(".$self->{'out.encodage'}.")",$fichier);
+    open( OUT, ">:encoding(" . $self->{'out.encodage'} . ")", $fichier );
     print OUT Dumper($data);
     close(OUT);
 }
-
 
 =head1 PRIVATE METHODS
 
@@ -290,15 +302,19 @@ to make sure we know what's going on.
 Load database connection and set data submodules.
 
 =cut
+
 sub load {
-    my ($self)=@_;
+    my ($self) = @_;
+
     # print "load: BEGIN", "\n";
     $self->SUPER::load();
-    $self->{'_capture'}=$self->{'_data'}->module('capture');
+    $self->{'_capture'} = $self->{'_data'}->module('capture');
     bless $self->{'_capture'}, 'AMC::ItemAnalysis::capture';
+
     # print "load: about to save variables...";
-    for my $var ('darkness_threshold','darkness_threshold_up') {
-        $self->{'_capture'}->{$var} = $self->{'_scoring'}->variable_transaction($var);
+    for my $var ( 'darkness_threshold', 'darkness_threshold_up' ) {
+        $self->{'_capture'}->{$var} =
+          $self->{'_scoring'}->variable_transaction($var);
     }
     $self->{'_score'} = AMC::Scoring::new(
         'seuil'    => $self->{'_capture'}->{'darkness_threshold'},
@@ -306,10 +322,10 @@ sub load {
         '_scoring' => $self->{'_scoring'},
         '_capture' => $self->{'capture'}
     );
+
     # print "done\n";
     # print "load: END\n";
 }
-
 
 =head2 pre_process
 
@@ -376,87 +392,93 @@ Later methods will add to it.
 
 sub pre_process {
     my ($self) = @_;
+
     # print "get_data:BEGIN\n";
     $self->SUPER::pre_process();
+
     # this setting comes from the GUI.  We may want to report the number of
     # absentees somewhere, but there's no need to add them to the analysis.
     # So we'll just reset it to zero.
     $self->{'noms.useall'} = 0;
+
     # put this in $self instead
     # $o = {};
     # $o->{'items'} = []; # replace with $self->{'questions'}
     # $o->{'submissions'} = []; # replace with $self->{'submissions'}
     # $o->{'totals'} = $self->{'marks'}; # just use $self->{'marks'}
     $self->{'submissions'} = [];
-    $exam_name = $self->{'out.nom'} ? $self->{'out.nom'} : "Untitled Exam" ;
+    $exam_name = $self->{'out.nom'} ? $self->{'out.nom'} : "Untitled Exam";
 
     $self->{'_scoring'}->begin_read_transaction('IAgt');
-    
+
     $marks = $self->{'marks'};
     my @codes;
     my @questions;
+
     # populate @codes and @questions lists.
     # I think:
     # - @codes is student identifying codes,
     # - @questions is exam questions.
-    # - last argument is "plain" or not.  
+    # - last argument is "plain" or not.
     #
     # Do we need @codes?
-    $self->codes_questions(\@codes,\@questions,1);
+    $self->codes_questions( \@codes, \@questions, 1 );
     for my $question (@questions) {
-       $question->{'ceiling'} = $self->{'_scoring'}->
-           question_maxmax($question->{'question'});
+        $question->{'ceiling'} =
+          $self->{'_scoring'}->question_maxmax( $question->{'question'} );
     }
     $self->{'questions'} = \@questions;
 
     # look for the first mark that has a max
     # (Assumes all student exams have the same max.)
     for my $m (@$marks) {
-        last if ($max = $m->{'max'});
+        last if ( $max = $m->{'max'} );
     }
 
-    # Loop on each student mark record
-    # Since we're looping through @$marks and appending to both @{$o->{'totals'}}
-    # and @{$o->{'submissions'}}, those arrays will be lined up by student.
-    # For now, there's no need to record the student number, copy number,
-    # or any personally identifying information about the student as a key.
+   # Loop on each student mark record
+   # Since we're looping through @$marks and appending to both @{$o->{'totals'}}
+   # and @{$o->{'submissions'}}, those arrays will be lined up by student.
+   # For now, there's no need to record the student number, copy number,
+   # or any personally identifying information about the student as a key.
     for my $m (@$marks) {
+
         # @sc is a list of the student number and copy number
         # It can't be a hash key but we could stringify it.
-        my @sc=($m->{'student'},$m->{'copy'});
+        my @sc = ( $m->{'student'}, $m->{'copy'} );
         $ssb = $self->{'_scoring'}->student_scoring_base(
             @sc,
             $self->{'_capture'}->{'darkness_threshold'},
             $self->{'_capture'}->{'darkness_threshold_up'}
         );
-        $self->weight_student_scoring_base($sc->[0],$ssb);
+        $self->weight_student_scoring_base( $sc->[0], $ssb );
         $submission = {};
         for my $q (@questions) {
-            my $qn = $q->{'question'}; # Question number
-            my $qt = $q->{'title'};    # Question name
-            $response = $self->{'_capture'}->question_response(@sc,$qn);
-            $result = $self->{'_scoring'}->question_result(@sc,$qn);
+            my $qn = $q->{'question'};    # Question number
+            my $qt = $q->{'title'};       # Question name
+            $response = $self->{'_capture'}->question_response( @sc, $qn );
+            $result   = $self->{'_scoring'}->question_result( @sc, $qn );
             $submission->{$qt} = {
-                'index' => $qn,
-                'score' => $result->{'score'},
-                'max' => $result->{'max'},
+                'index'    => $qn,
+                'score'    => $result->{'score'},
+                'max'      => $result->{'max'},
                 'response' => $response,
-                # we're adding the scoring base here mainly for introspection/debugging.
-                # Remove it later?
+
+        # we're adding the scoring base here mainly for introspection/debugging.
+        # Remove it later?
                 'scoring_base' => $ssb->{'questions'}->{$qn}
             };
             $q->{'type'} = $ssb->{'questions'}->{$qn}->{'type'};
         }
-        push @{$self->{'submissions'}}, $submission;
+        push @{ $self->{'submissions'} }, $submission;
     }
 
     $self->{'_scoring'}->end_transaction('IAgt');
 
     # exam summary statistics and metadata
-    $self->{'summary'} = {};
+    $self->{'summary'}  = {};
     $self->{'metadata'} = {};
-    if ($max) { $self->{'summary'}->{'ceiling'} = $max; }
-    if ($exam_name) { $self->{'metadata'}->{'title'} = $exam_name; }
+    if ($max)       { $self->{'summary'}->{'ceiling'} = $max; }
+    if ($exam_name) { $self->{'metadata'}->{'title'}  = $exam_name; }
     return;
 
 }
@@ -505,50 +527,59 @@ See L<Issue 2|https://github.com/leingang/AMC-ItemAnalysis/issues/2>
 =cut
 
 sub weight_student_scoring_base {
-    my ($self, $student, $ssb) = @_;
+    my ( $self, $student, $ssb ) = @_;
     $scorer = $self->{'_score'};
-    while (my ($k,$q) = each (%{$ssb->{'questions'}})) {
+    while ( my ( $k, $q ) = each( %{ $ssb->{'questions'} } ) ) {
+
         # baseline question score
         $scorer->prepare_question($q);
         $scorer->set_type(0);
-        ($old_xx,$old_why) = $scorer->score_question($student,$q,0);
+        ( $old_xx, $old_why ) = $scorer->score_question( $student, $q, 0 );
+
         # clone the question so we can test scores for
         # individually ticked boxes
-        if ($q->{'type'} == 1) {
-            # mutiple choice question with a single correct 
+        if ( $q->{'type'} == 1 ) {
+
+            # mutiple choice question with a single correct
             # answer.  To find the weight, we zero out all answers
             # in the clone and tick answer $i.
             $qc = dclone $q;
-            for my $i (0 .. $#{$q->{'answers'}}) {
+            for my $i ( 0 .. $#{ $q->{'answers'} } ) {
+
                 # zero out 'ticked' for all answers in the clone
                 # except $i
-                for my $j (0 .. $#{$q->{'answers'}}) {
-                    $qc->{'answers'}->[$j]->{'ticked'} = ($i == $j ? 1 : 0);
+                for my $j ( 0 .. $#{ $q->{'answers'} } ) {
+                    $qc->{'answers'}->[$j]->{'ticked'} = ( $i == $j ? 1 : 0 );
                 }
                 $scorer->prepare_question($qc);
                 $scorer->set_type(0);
-                ($new_xx,$new_why) = $scorer->score_question($student,$qc,0);
+                ( $new_xx, $new_why ) =
+                  $scorer->score_question( $student, $qc, 0 );
                 $q->{'answers'}->[$i]->{'weight'} = $new_xx;
             }
         }
-        elsif ($q->{'type'} == 2) {
+        elsif ( $q->{'type'} == 2 ) {
+
             # multiple choice question with multiple correct answers
             # and *not* ticking boxes could lead to points.
             # So we compute the weight of each by flipping it and comparing
             # to the original.
-            for my $i (0 .. $#{$q->{'answers'}}) { 
+            for my $i ( 0 .. $#{ $q->{'answers'} } ) {
+
                 # for my $j (0 .. $#{$q->{'answers'}}) {
                 #     $orig_ticked = $q->{'answers'}->[$j]->{'ticked'};
-                #     $qc->{'answers'}->[$j]->{'ticked'} 
+                #     $qc->{'answers'}->[$j]->{'ticked'}
                 #         = ($i == $j ? (1 - $orig_ticked) : $orig_ticked);
                 # }
                 # reclone
                 $qc = dclone $q;
                 $scorer->prepare_question($qc);
                 $scorer->set_type(0);
-                $qc->{'answers'}->[$i]->{'ticked'} = 1 - $q->{'answers'}->[$i]->{'ticked'};
-                ($new_xx,$new_why) = $scorer->score_question($student,$qc,0);
-                $q->{'answers'}->[$i]->{'weight'} = abs($old_xx-$new_xx);
+                $qc->{'answers'}->[$i]->{'ticked'} =
+                  1 - $q->{'answers'}->[$i]->{'ticked'};
+                ( $new_xx, $new_why ) =
+                  $scorer->score_question( $student, $qc, 0 );
+                $q->{'answers'}->[$i]->{'weight'} = abs( $old_xx - $new_xx );
             }
         }
         else {
@@ -556,7 +587,6 @@ sub weight_student_scoring_base {
         }
     }
 }
-
 
 =head2 alpha
 
@@ -573,15 +603,16 @@ to work.
 
 sub alpha {
     my $self = shift;
-    my $K = scalar @{$self->{'questions'}};
-    return undef if ($K == 0); # no reliability for a test with no items!
-    return 1 if ($K == 1); # if there is only one item it is totally reliable!
-    my $total_variance = $self->{'summary'}->{'standard_deviation'} * $self->{'summary'}->{'standard_deviation'}; 
-    return undef if ($total_variance == 0); # if all scores are the same 
-    my @stdevs = map { $_->{'standard_deviation'} } @{$self->{'questions'}}; 
-    my @variances = map { $_ * $_ } @stdevs;
+    my $K    = scalar @{ $self->{'questions'} };
+    return undef if ( $K == 0 );    # no reliability for a test with no items!
+    return 1 if ( $K == 1 ); # if there is only one item it is totally reliable!
+    my $total_variance = $self->{'summary'}->{'standard_deviation'} *
+      $self->{'summary'}->{'standard_deviation'};
+    return undef if ( $total_variance == 0 );    # if all scores are the same
+    my @stdevs = map { $_->{'standard_deviation'} } @{ $self->{'questions'} };
+    my @variances        = map { $_ * $_ } @stdevs;
     my $sum_of_variances = sum @variances;
-    return $K/($K-1)*(1 - $sum_of_variances/$total_variance);
+    return $K / ( $K - 1 ) * ( 1 - $sum_of_variances / $total_variance );
 }
 
 =head2 classify_difficulty
@@ -601,14 +632,14 @@ meaningful classification.
 sub classify_difficulty {
     my $q = shift;
     $diff = $q->{'difficulty'};
-    if ($diff >= 0.85) {
-        return "Easy"
+    if ( $diff >= 0.85 ) {
+        return "Easy";
     }
-    elsif ($diff >= 0.5) {
-        return "Moderate"
+    elsif ( $diff >= 0.5 ) {
+        return "Moderate";
     }
     else {
-        return "Hard"
+        return "Hard";
     }
 }
 
@@ -627,33 +658,31 @@ meaningful classification.
 sub classify_discrimination {
     my $q = shift;
     $diff = $q->{'discrimination'};
-    if ($diff >= 0.3) {
-        return "Good"
+    if ( $diff >= 0.3 ) {
+        return "Good";
     }
-    elsif ($diff >= 0.1) {
-        return "Fair"
+    elsif ( $diff >= 0.1 ) {
+        return "Fair";
     }
     else {
-        return "Poor"
+        return "Poor";
     }
 }
 
-
-# compute correlation between two Statistics::Descriptive variables 
+# compute correlation between two Statistics::Descriptive variables
 #
-# This was put in just to test the module's own calculation.  
+# This was put in just to test the module's own calculation.
 # FIXME: put it somewhere else like in a Statistics::Descriptive test.
 sub _correlation {
-    my ($self,$x_stats,$y_stats) = @_;
-    my @x = $x_stats->get_data();
-    my @y = $y_stats->get_data();
-    my @xy = map {$x[$_] * $y[$_]} (0 .. $#x);
+    my ( $self, $x_stats, $y_stats ) = @_;
+    my @x  = $x_stats->get_data();
+    my @y  = $y_stats->get_data();
+    my @xy = map { $x[$_] * $y[$_] } ( 0 .. $#x );
     $xy_stats = Statistics::Descriptive::Full->new();
     $xy_stats->add_data(@xy);
-    return ($xy_stats->mean() - ($x_stats->mean())*($y_stats->mean())) /
-        ($x_stats->standard_deviation()*$y_stats->standard_deviation())
+    return ( $xy_stats->mean() - ( $x_stats->mean() ) * ( $y_stats->mean() ) )
+      / ( $x_stats->standard_deviation() * $y_stats->standard_deviation() );
 }
-
 
 =head2 classify_type 
 
@@ -690,16 +719,17 @@ file.
 # TODO: create some tests for this function based on mt1
 # Also a quiz that has numeric questions, like Honors Calc III Q13 (?)
 sub classify_type {
-    my ($self,$q) = @_;
-    if ($self->question_is_open($q)) {
-        return 'FR'
+    my ( $self, $q ) = @_;
+    if ( $self->question_is_open($q) ) {
+        return 'FR';
     }
-    elsif ($q->{'type'} == 1) {
+    elsif ( $q->{'type'} == 1 ) {
+
         # TODO: fix above with an AMC constant
-        return 'MC'
+        return 'MC';
     }
-    elsif ($q->{'type'} == 2) {
-        return 'MS'
+    elsif ( $q->{'type'} == 2 ) {
+        return 'MS';
     }
     else {
         return $q->{'type'};
@@ -721,16 +751,20 @@ non-integer values, this will fail.
 =cut
 
 sub question_is_open {
-    my ($self,$q) = @_;
+    my ( $self, $q ) = @_;
+
     # print "q:", Dumper($q);
     # return ($q->{'title'} =~ /^FR/);
     # won't work until the answers have been loaded, obvs.
-    @answers = keys %{$q->{'responses'}};
+    @answers = keys %{ $q->{'responses'} };
+
     # print "answers: ", Dumper(\@answers);
-    @weights = sort {$a <=> $b} map { $q->{'responses'}->{$_}->{'weight'} } @answers;
+    @weights =
+      sort { $a <=> $b } map { $q->{'responses'}->{$_}->{'weight'} } @answers;
+
     # print $q->{'title'}, " weights: ", Dumper(\@weights);
     $i = 0;
-    return reduce { $a && ($b == $i++) } 1, @weights; 
+    return reduce { $a && ( $b == $i++ ) } 1, @weights;
 }
 
 =head2 compute_summary_statistics
@@ -749,29 +783,31 @@ C<standard_deviation>, C<min>, C<max>, and C<count>.
 =cut 
 
 sub compute_summary_statistics {
-    my ($analyzer,$dest) = @_;
+    my ( $analyzer, $dest ) = @_;
     for (qw(mean standard_deviation min max count)) {
         $dest->{$_} = $analyzer->$_();
     }
+
     # these methods sort the data, which messes with
     # correlations.  So we do them on a copy.
     $analyzer_copy = Statistics::Descriptive::Full->new();
-    $analyzer_copy->add_data($analyzer->get_data());
+    $analyzer_copy->add_data( $analyzer->get_data() );
     $dest->{'median'} = $analyzer_copy->median();
     my @sorted = $analyzer_copy->get_data;
     my $Q1, $Q3, $lower, $upper;
-    $dest->{'Q1'} = $Q1 = $analyzer_copy->quantile(1);
-    $dest->{'Q3'} = $Q3 = $analyzer_copy->quantile(3);
-    $dest->{'lower_threshold'} = $lower = $Q1-1.5*($Q3-$Q1);
-    $dest->{'upper_threshold'} = $upper = $Q3+1.5*($Q3-$Q1);
-    my @trimmed = ();
+    $dest->{'Q1'}              = $Q1    = $analyzer_copy->quantile(1);
+    $dest->{'Q3'}              = $Q3    = $analyzer_copy->quantile(3);
+    $dest->{'lower_threshold'} = $lower = $Q1 - 1.5 * ( $Q3 - $Q1 );
+    $dest->{'upper_threshold'} = $upper = $Q3 + 1.5 * ( $Q3 - $Q1 );
+    my @trimmed  = ();
     my @outliers = ();
-    # partition @sorted into two arrays to weed out 
-    # outliers but keep the good ones.  
+
+    # partition @sorted into two arrays to weed out
+    # outliers but keep the good ones.
     # See https://stackoverflow.com/a/8618040/297797
     # for the algorithm and notes.
     for (@sorted) {
-        if (($_ >= $lower ) && ($_ <= $upper )) {
+        if ( ( $_ >= $lower ) && ( $_ <= $upper ) ) {
             push @trimmed, $_;
         }
         else {
@@ -780,7 +816,7 @@ sub compute_summary_statistics {
     }
     $dest->{'upper_extreme'} = max @trimmed;
     $dest->{'lower_extreme'} = min @trimmed;
-    $dest->{'outliers'} = \@outliers;
+    $dest->{'outliers'}      = \@outliers;
 }
 
 # REALLY PRIVATE METHODS
@@ -790,27 +826,27 @@ sub compute_summary_statistics {
 # They begin with an underscore so Test::Pod::Coverage
 # won't complain about that.
 
-
 # add answer labels to responses hash
 #
 # Uses the C<AMC::CSLog> module to parse the project's F<amc-compiled.cs>
 # log file.
 sub _add_labels {
     my $self = shift;
-    $project_dir = dirname($self->{'fich.datadir'});
+    $project_dir     = dirname( $self->{'fich.datadir'} );
     $cslog_file_name = $project_dir . "/amc-compiled.cs";
-    if ( -e $cslog_file_name) {
+    if ( -e $cslog_file_name ) {
         my $cslog_parser = AMC::CSLog->new();
-        my $labels = $cslog_parser->parse($cslog_file_name);
+        my $labels       = $cslog_parser->parse($cslog_file_name);
         for (@$labels) {
             my $question_name = $_->{'question_name'};
             my $answer_number = $_->{'answer_number'};
             my $answer_label  = $_->{'answer_label'};
-            $question = first {$_->{'title'} eq $question_name } @{$self->{'questions'}};
-            $question->{'responses'}->{$answer_number}->{'label'} = $answer_label;
+            $question = first { $_->{'title'} eq $question_name }
+            @{ $self->{'questions'} };
+            $question->{'responses'}->{$answer_number}->{'label'} =
+              $answer_label;
         }
     }
 }
-
 
 1;
