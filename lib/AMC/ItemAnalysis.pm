@@ -32,9 +32,12 @@ use warnings;
 #
 # David Golden's recommendations for version numbers <http://bit.ly/1g8EbKi>
 # are used, e.g. v0.1.2 is "0.001002" and v1.2.3dev4 is "1.002002_004".
-
+# The first line enables parsers to find the version identifier as a string.
+# The second line converts it to a numeric value at runtime.
+## no critic (BuiltinFunctions::ProhibitStringyEval)
 our $VERSION = '0.006000_000';
-$VERSION = eval $VERSION;    # runtime conversion to numeric value
+$VERSION = eval $VERSION;
+## use critic
 
 1;
 
