@@ -63,10 +63,12 @@ Changed
 Fixed
 ~~~~~
 
-* fixed a bug that caused free response problems with two-digit point
+* Fixed a bug that caused free response problems with two-digit point
   values to elude detection.
 
-* fixed various typos
+* Fixed various typos
+
+* Partial updates of library code to :code:`perlcritic` “gentle” level
 
 
 Version 0.6, 2018-12-18
