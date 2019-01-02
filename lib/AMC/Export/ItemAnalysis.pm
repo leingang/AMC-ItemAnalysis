@@ -289,9 +289,9 @@ sub export {
         'submissions' => $self->{'submissions'},
         'totals'      => $self->{'marks'}
     };
-    open( OUT, ">:encoding(" . $self->{'out.encodage'} . ")", $fichier );
-    print OUT Dumper($data);
-    close(OUT);
+    open( my $fh, ">:encoding(" . $self->{'out.encodage'} . ")", $fichier );
+    print $fh Dumper($data);
+    close($fh);
 }
 
 =head1 PRIVATE METHODS
@@ -607,11 +607,11 @@ to work.
 sub alpha {
     my $self = shift;
     my $K    = scalar @{ $self->{'questions'} };
-    return undef if ( $K == 0 );    # no reliability for a test with no items!
+    return if ( $K == 0 ); # no reliability for a test with no items!
     return 1 if ( $K == 1 ); # if there is only one item it is totally reliable!
     my $total_variance = $self->{'summary'}->{'standard_deviation'} *
       $self->{'summary'}->{'standard_deviation'};
-    return undef if ( $total_variance == 0 );    # if all scores are the same
+    return if ( $total_variance == 0 ); # if all scores are the same
     my @stdevs = map { $_->{'standard_deviation'} } @{ $self->{'questions'} };
     my @variances        = map { $_ * $_ } @stdevs;
     my $sum_of_variances = sum @variances;
