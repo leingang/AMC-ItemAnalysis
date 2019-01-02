@@ -50,6 +50,8 @@ From the command line:
 
 package AMC::Export::ItemAnalysis_LaTeX;
 
+use strict;
+use warnings;
 use parent q(AMC::Export::ItemAnalysis);
 
 =head1 METHOD
@@ -68,14 +70,14 @@ sub export {
 
     # Sort by question ID number.  I guess this is pretty close to the
     # order they appear in the source file.
-    @questions_sorted =
+    my @questions_sorted =
       sort { $a->{'question'} <=> $b->{'question'} } @{ $self->{'questions'} };
     $self->{'questions'} = \@questions_sorted;
 
     # preamble to table first row
     # We use single quote here so we don't have to escape all the backslashes.
-    $exam_name = $self->{'metadata'}->{'title'};
-    $doc_title = ( $exam_name ? $exam_name . ' ' : '' ) . 'Item Analysis';
+    my $exam_name = $self->{'metadata'}->{'title'};
+    my $doc_title = ( $exam_name ? $exam_name . ' ' : '' ) . 'Item Analysis';
     print $fh sprintf q(
 \documentclass{article}
 );
@@ -187,7 +189,7 @@ sub export {
       '\\\\', "\n";
     print $fh q(\hline), "\n";
     for my $i ( 0 .. $#{ $self->{'questions'} } ) {
-        $q = $self->{'questions'}->[$i];
+        my $q = $self->{'questions'}->[$i];
         print $fh $i + 1, " & ";
         print $fh $q->{'title'}, " & ";
         print $fh $q->{'type_class'};
@@ -219,7 +221,7 @@ sub export {
 
     # print stats for each multiple choice item:
     for my $i ( 0 .. $#{ $self->{'questions'} } ) {
-        $q = $self->{'questions'}->[$i];
+        my $q = $self->{'questions'}->[$i];
         next if ( $q->{'type_class'} eq 'FR' );
         print $fh $i + 1, " & ";    # was $q->{'title'} but that's too long
         print $fh sprintf( "%.2f", $q->{'mean'} ), " & ";
@@ -229,14 +231,14 @@ sub export {
         print $fh sprintf( "%.2f", $q->{'discrimination'} ), " & ";
         print $fh $q->{'discrimination_class'}, " & ";
         my $row = 0;
-        @answers = sort keys( %{ $q->{'responses'} } );
+        my @answers = sort keys( %{ $q->{'responses'} } );
 
         for my $k (@answers) {
             $a = $q->{'responses'}->{$k};
             if ( $row++ ) {
                 print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
             }
-            $label = ( defined( $a->{'label'} ) ? $a->{'label'} : $k );
+            my $label = ( defined( $a->{'label'} ) ? $a->{'label'} : $k );
             print $fh $label, " & ";
             print $fh sprintf( "%.2f", $a->{'weight'} ), " & ";
             print $fh sprintf( "%.2f", $a->{'mean'} ),   " & ";
@@ -244,7 +246,7 @@ sub export {
             print $fh
               sprintf( "\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100 ),
               " & ";
-            $bar_key = $a->{'correct'} ? "correct" : "incorrect";
+            my $bar_key = $a->{'correct'} ? "correct" : "incorrect";
             print $fh
               sprintf( "\\tikz{\\draw[bar,$bar_key] (0,0) rectangle (%.2f,1);}",
                 $a->{'frequency'} );
@@ -270,7 +272,7 @@ sub export {
 \\\\\hline\endhead
     );
     for my $i ( 0 .. $#{ $self->{'questions'} } ) {
-        $q = $self->{'questions'}->[$i];
+        my $q = $self->{'questions'}->[$i];
         next unless ( $q->{'type_class'} eq 'FR' );
         print $fh $i + 1, " & ";    # was $q->{'title'} but that's too long
         print $fh sprintf( "%.2f", $q->{'mean'} ), " & ";
@@ -323,7 +325,7 @@ sub export {
 );
     print $fh "item mean sd diff diffc disc discc\n";
     for my $i ( 0 .. $#{ $self->{'questions'} } ) {
-        $q = $self->{'questions'}->[$i];
+        my $q = $self->{'questions'}->[$i];
         print $fh $i + 1, " ";    # was $q->{'title'} but that's too long
         print $fh sprintf( "%.2f", $q->{'mean'} ), " ";
         print $fh sprintf( "%.2f", $q->{'standard_deviation'} ), " ";

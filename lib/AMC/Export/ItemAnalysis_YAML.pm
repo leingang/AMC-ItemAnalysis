@@ -50,6 +50,8 @@ From the command line:
 
 package AMC::Export::ItemAnalysis_YAML;
 
+use strict;
+use warnings;
 use YAML::Tiny;
 
 use parent q(AMC::Export::ItemAnalysis);

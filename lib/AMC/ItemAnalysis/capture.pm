@@ -11,7 +11,7 @@ AMC::ItemAnalysis::capture - Add methods to AMC::DataModule::capture
 
 package AMC::ItemAnalysis::capture;
 
-use strict;
+# use strict;
 use warnings;
 use parent q(AMC::DataModule::capture);
 use Data::Dumper;    # for debugging

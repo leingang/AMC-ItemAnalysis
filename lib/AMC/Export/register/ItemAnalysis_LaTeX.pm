@@ -37,13 +37,15 @@ L<AMC::Export::register>
 
 package AMC::Export::register::ItemAnalysis_LaTeX;
 
+use strict;
+use warnings;
 use AMC::Export::register;
 use AMC::Basic;
 
 # AMC 1.3 uses GTK3; older version Gtk2
 use Gtk3;
 
-@ISA = ("AMC::Export::register");
+use parent 'AMC::Export::register';
 
 sub new {
     my $class = shift;
