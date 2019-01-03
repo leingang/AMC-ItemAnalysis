@@ -68,7 +68,9 @@ Fixed
 
 * Fixed various typos
 
-* Partial updates of library code to :code:`perlcritic` “gentle” level
+* Refactoring of library code to perlcritic_ “gentle” level
+
+.. _perlcritic: https://metacpan.org/pod/distribution/Perl-Critic/bin/perlcritic
 
 
 Version 0.6, 2018-12-18
