@@ -14,7 +14,7 @@ AMC::ItemAnalysis::capture - Add methods to AMC::DataModule::capture
 package AMC::ItemAnalysis::capture;
 ## use critic
 
-# use strict;
+use strict;
 use warnings;
 use parent q(AMC::DataModule::capture);
 use Data::Dumper;    # for debugging
@@ -63,7 +63,7 @@ sub question_response {
     my @tl = $self->ticked_list( $student, $copy, $question, $dt, $dtu );
 
     # print "question_response: \@tl:", Dumper(\@tl), "\n";
-    if ( $self->has_answer_zero( @$student, $copy, $question ) ) {
+    if ( $self->has_answer_zero( $student, $copy, $question ) ) {
         if ( shift @tl ) {
             $t .= '0';
         }
