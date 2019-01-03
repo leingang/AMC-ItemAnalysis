@@ -18,8 +18,9 @@ package AMC::ItemAnalysis::capture;
 use warnings;
 use parent q(AMC::DataModule::capture);
 use Data::Dumper;    # for debugging
+use Readonly;        # for constants
 
-my $EMPTY = q{};
+Readonly my $EMPTY => q{};
 
 =head1 METHOD
 
@@ -77,18 +78,20 @@ sub question_response {
 
 # convert number to letter
 # stolen from AMC::Export::CSV
+
 sub _i_to_a {
     my ( $self, $i ) = @_;
+    Readonly my $LENGTH_OF_ALPHABET => 26;
     if ( $i == 0 ) {
         return ('0');
     }
     else {
         my $s = $EMPTY;
         while ( $i > 0 ) {
-            $s = chr( ord('a') + ( ( $i - 1 ) % 26 ) ) . $s;
-            $i = int( ( $i - 1 ) / 26 );
+            $s = chr( ord('a') + ( ( $i - 1 ) % $LENGTH_OF_ALPHABET ) ) . $s;
+            $i = int( ( $i - 1 ) / $LENGTH_OF_ALPHABET );
         }
-        $s =~ s/^([[a-z]])/uc($1)/e;
+        $s =~ s/^([[:lower:]]+)/uc($1)/e;
         return ($s);
     }
 }
