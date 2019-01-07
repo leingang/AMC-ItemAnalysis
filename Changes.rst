@@ -63,6 +63,9 @@ Changed
 Fixed
 ~~~~~
 
+* Fixed a bug in LaTeX formatting that caused undefined averages to
+  be formatted as 0.00.
+
 * Fixed a bug that caused free response problems with two-digit point
   values to elude detection.
 

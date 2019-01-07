@@ -54,6 +54,8 @@ use strict;
 use warnings;
 use parent q(AMC::Export::ItemAnalysis);
 
+use Data::Dumper;
+
 =head1 METHOD
 
 =head2 export
@@ -234,22 +236,28 @@ sub export {
         my @answers = sort keys( %{ $q->{'responses'} } );
 
         for my $k (@answers) {
-            $a = $q->{'responses'}->{$k};
+            my $answer = $q->{'responses'}->{$k};
             if ( $row++ ) {
                 print $fh '\\\\', "\n", q(\\multicolumn{7}{c}{} & );
             }
-            my $label = ( defined( $a->{'label'} ) ? $a->{'label'} : $k );
+            # print Dumper($answer);
+            my $label = ( defined( $answer->{'label'} ) ? $answer->{'label'} : $k );
             print $fh $label, " & ";
-            print $fh sprintf( "%.2f", $a->{'weight'} ), " & ";
-            print $fh sprintf( "%.2f", $a->{'mean'} ),   " & ";
-            print $fh $a->{'count'}, " & ";
+            print $fh sprintf( "%.2f", $answer->{'weight'} ), " & ";
+            my $answer_mean = ( 
+                defined($answer->{'mean'}) ?
+                sprintf( "%.2f", $answer->{'mean'} ) :
+                "{---}"
+            );
+            print $fh $answer_mean, " & ";
+            print $fh $answer->{'count'}, " & ";
             print $fh
-              sprintf( "\\SI{%.2f}{\\percent}", $a->{'frequency'} * 100 ),
+              sprintf( "%.2f\\%%", $answer->{'frequency'} * 100 ),
               " & ";
-            my $bar_key = $a->{'correct'} ? "correct" : "incorrect";
+            my $bar_key = $answer->{'correct'} ? "correct" : "incorrect";
             print $fh
               sprintf( "\\tikz{\\draw[bar,$bar_key] (0,0) rectangle (%.2f,1);}",
-                $a->{'frequency'} );
+                $answer->{'frequency'} );
         }
         print $fh '\\\\[\itemsep]', "\n";
     }
@@ -316,7 +324,7 @@ sub export {
 
     # print the scatterplot
     print $fh q(
-\section{Scatterplot}
+\subsection{Scatterplot}
 
 \begin{center}
 \begin{tikzpicture}
