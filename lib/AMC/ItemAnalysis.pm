@@ -35,7 +35,7 @@ use warnings;
 # The first line enables parsers to find the version identifier as a string.
 # The second line converts it to a numeric value at runtime.
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
-our $VERSION = '0.006000_000';
+our $VERSION = '1.000000_000';
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -54,7 +54,7 @@ AMC::ItemAnalysis - A suite of auto-multiple-choice plugins for doing item analy
 
 =head1 VERSION
 
-Version 0.004000_001
+Version 1.000000_000
 
 
 =head1 SYNOPSIS

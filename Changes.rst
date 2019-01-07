@@ -39,8 +39,8 @@ messages, which use present tense, imperative mood.)
 The top section, “Unreleased Changes,” is what will become the change log
 for the next release.
 
-Unreleased Changes
-------------------
+Version 1.0, 2019-01-07
+-----------------------
 
 Added
 ~~~~~
